@@ -1,0 +1,16 @@
+[package]
+name = "kramer"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "kramer_core"
+path = "src/lib.rs"
+
+[[bin]]
+name = "kramer"
+path = "src/main.rs"
+
+[dependencies]
+vampirc-uci = "0.11"
+

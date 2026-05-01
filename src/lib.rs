@@ -1,28 +1,45 @@
+use crate::engine::Engine;
+use std::io::{self, Write};
+use std::{sync::mpsc, thread};
+use vampirc_uci::UciMessage;
+
 mod engine;
-
-use std::io::{self, BufRead};
-
-pub use engine::boot;
-use vampirc_uci::parse_one;
+pub mod error;
+mod logging;
+mod uci;
 
 pub fn run() {
-    let mut engine = boot();
+    let _guard = logging::init();
+    logging::install_panic_hook();
 
-    let stdin = io::stdin();
-    let mut stdout = io::stdout();
+    tracing::info!("kramer boot");
 
-    for line in stdin.lock().lines() {
-        let line = match line {
-            Ok(line) => line,
-            Err(_) => continue,
-        };
+    let (tx, rx) = mpsc::channel::<UciMessage>();
 
-        let line = line.trim();
+    let engine_thread = thread::spawn(move || {
+        let mut engine = Engine::new();
 
-        if line.is_empty() {
-            continue;
+        while let Ok(cmd) = rx.recv() {
+            if matches!(cmd, UciMessage::Quit) {
+                break;
+            }
+
+            let messages = engine.command(cmd);
+
+            let stdout = io::stdout();
+            let mut out = stdout.lock();
+
+            for msg in messages {
+                writeln!(out, "{msg}").unwrap();
+            }
+            out.flush().unwrap();
         }
+    });
 
-        let msg = parse_one(line);
-    }
+    let uci = thread::spawn(move || {
+        uci::run(tx).unwrap();
+    });
+
+    uci.join().expect("uci thread panicked");
+    engine_thread.join().expect("engine thread panicked");
 }

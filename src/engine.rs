@@ -1,9 +1,13 @@
 use vampirc_uci::{MessageList, UciMessage, UciOptionConfig};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Engine {
     debug: bool,
+    options: EngineOptions,
+}
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EngineOptions {
     threads_option: i64,
     hash_option: i64,
 }
@@ -14,6 +18,8 @@ impl Engine {
             ..Default::default()
         }
     }
+    pub fn reset(&mut self) {}
+
     pub fn command(&mut self, cmd: UciMessage) -> MessageList {
         let mut responses = MessageList::new();
         match cmd {
@@ -36,6 +42,7 @@ impl Engine {
                 tracing::info!("registration is not necessary for Kramer");
             }
             UciMessage::UciNewGame => {
+                self.reset();
                 tracing::info!("uci new game");
             }
             UciMessage::Position {
@@ -67,19 +74,19 @@ impl Engine {
     }
     fn set_option(&mut self, name: &str, value: &Option<String>) {
         match name {
-            "Hash" => self.set_hash_option(value),
-            "Threads" => self.set_threads_option(value),
+            "Hash" => self.set_hash(value),
+            "Threads" => self.set_threads(value),
             _ => {
                 tracing::error!(?name, "unknown option received");
             }
         }
     }
-    fn set_hash_option(&mut self, value: &Option<String>) {
+    fn set_hash(&mut self, value: &Option<String>) {
         if let Some(val) = value {
             match val.parse::<i64>() {
                 Ok(val) => {
                     if (HASH_MIN..=HASH_MAX).contains(&val) {
-                        self.hash_option = val;
+                        self.options.hash_option = val;
                         tracing::info!(?val, "option set: Hash");
                     } else {
                         tracing::error!(?val, "value out of bounds for option: Hash");
@@ -90,11 +97,11 @@ impl Engine {
                 }
             }
         } else {
-            self.hash_option = 16;
+            self.options.hash_option = 16;
             tracing::info!("option set: Hash default");
         }
     }
-    fn set_threads_option(&mut self, value: &Option<String>) {
+    fn set_threads(&mut self, value: &Option<String>) {
         if let Some(val) = value {
             match val.parse::<i64>() {
                 Ok(val) => {
@@ -104,7 +111,7 @@ impl Engine {
                             .unwrap_or(64i64))
                         .contains(&val)
                     {
-                        self.threads_option = val;
+                        self.options.threads_option = val;
                         tracing::info!(?val, "option set: Threads");
                     } else {
                         tracing::error!(?val, "value out of bounds for option: Threads");
@@ -115,7 +122,7 @@ impl Engine {
                 }
             }
         } else {
-            self.threads_option = 1;
+            self.options.threads_option = 1;
             tracing::info!("option set: Threads default");
         }
     }
@@ -149,10 +156,9 @@ pub const HASH_MAX: i64 = 4096;
 pub const THREADS_DEFAULT: i64 = 1;
 pub const THREADS_MIN: i64 = 1;
 
-impl Default for Engine {
+impl Default for EngineOptions {
     fn default() -> Self {
         Self {
-            debug: false,
             threads_option: THREADS_DEFAULT,
             hash_option: HASH_DEFAULT,
         }

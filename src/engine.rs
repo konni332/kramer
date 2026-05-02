@@ -31,7 +31,6 @@ impl Engine {
             }
             UciMessage::SetOption { name, value } => {
                 self.set_option(&name, &value);
-                tracing::info!(?name, ?value, "option set");
             }
             UciMessage::Register { .. } => {
                 tracing::info!("registration is not necessary for Kramer");
@@ -92,13 +91,19 @@ impl Engine {
             }
         } else {
             self.hash_option = 16;
+            tracing::info!("option set: Hash default");
         }
     }
     fn set_threads_option(&mut self, value: &Option<String>) {
         if let Some(val) = value {
             match val.parse::<i64>() {
                 Ok(val) => {
-                    if (THREADS_MIN..=THREADS_MAX).contains(&val) {
+                    if (THREADS_MIN
+                        ..=std::thread::available_parallelism()
+                            .map(|val| val.get() as i64)
+                            .unwrap_or(64i64))
+                        .contains(&val)
+                    {
                         self.threads_option = val;
                         tracing::info!(?val, "option set: Threads");
                     } else {
@@ -111,6 +116,7 @@ impl Engine {
             }
         } else {
             self.threads_option = 1;
+            tracing::info!("option set: Threads default");
         }
     }
     fn options(&self) -> MessageList {
@@ -125,7 +131,11 @@ impl Engine {
             name: "Threads".into(),
             default: Some(THREADS_DEFAULT),
             min: Some(THREADS_MIN),
-            max: Some(THREADS_MAX),
+            max: Some(
+                std::thread::available_parallelism()
+                    .map(|val| val.get() as i64)
+                    .unwrap_or(64i64),
+            ),
         });
 
         vec![hash_opt, thread_opt]
@@ -138,7 +148,6 @@ pub const HASH_MAX: i64 = 4096;
 
 pub const THREADS_DEFAULT: i64 = 1;
 pub const THREADS_MIN: i64 = 1;
-pub const THREADS_MAX: i64 = 64;
 
 impl Default for Engine {
     fn default() -> Self {

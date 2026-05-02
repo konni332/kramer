@@ -1,3 +1,6 @@
+mod generation;
+mod pawns;
+
 pub type Bitboard = u64;
 pub type Square = u8;
 

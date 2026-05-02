@@ -1,9 +1,13 @@
 use vampirc_uci::{MessageList, UciMessage, UciOptionConfig};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+use crate::board::Board;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Engine {
     debug: bool,
     options: EngineOptions,
+
+    board: Board,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,6 +32,7 @@ impl Engine {
                 responses.push(self.author());
                 responses.extend(self.options());
                 responses.push(UciMessage::UciOk);
+                self.setup();
             }
             UciMessage::IsReady => {
                 responses.push(UciMessage::ReadyOk);
@@ -49,7 +54,22 @@ impl Engine {
                 startpos,
                 fen,
                 moves,
-            } => {}
+            } => {
+                if startpos {
+                    self.board = Board::startpos();
+                    tracing::info!("Board set to starting position");
+                } else if let Some(fen) = fen {
+                    self.board = match Board::from_fen(&fen.0) {
+                        Ok(board) => board,
+                        Err(err) => {
+                            tracing::error!(?err, "Error parsing FEN position");
+                            return responses;
+                        }
+                    }
+                }
+
+                // apply moves here later
+            }
             UciMessage::Go {
                 time_control,
                 search_control,
@@ -147,6 +167,10 @@ impl Engine {
 
         vec![hash_opt, thread_opt]
     }
+
+    pub fn setup(&mut self) {
+        self.board = Board::startpos();
+    }
 }
 
 pub const HASH_DEFAULT: i64 = 16;
@@ -161,6 +185,16 @@ impl Default for EngineOptions {
         Self {
             threads_option: THREADS_DEFAULT,
             hash_option: HASH_DEFAULT,
+        }
+    }
+}
+
+impl Default for Engine {
+    fn default() -> Self {
+        Self {
+            debug: false,
+            options: EngineOptions::default(),
+            board: Board::empty(),
         }
     }
 }

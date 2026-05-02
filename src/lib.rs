@@ -6,7 +6,9 @@ use vampirc_uci::UciMessage;
 mod board;
 mod engine;
 pub mod error;
+mod fen;
 mod logging;
+mod moves;
 mod uci;
 
 pub fn run() {

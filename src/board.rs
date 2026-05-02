@@ -1,5 +1,3 @@
-use crate::error::FenError;
-
 pub type Bitboard = u64;
 pub type Square = u8;
 
@@ -40,6 +38,7 @@ pub const BK: u8 = 12;
 /// 11 BQ
 /// 12 BK
 #[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Board {
     pub pieces: [Bitboard; 12],
 
@@ -88,11 +87,89 @@ impl Board {
     }
 
     pub fn startpos() -> Self {
-        Self::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
+        Self::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+            .expect("Start position failed to be parsed")
     }
 
-    pub fn from_fen(src: &str) -> Result<Self, FenError> {
-        unimplemented!()
+    #[inline(always)]
+    pub fn put_piece(&mut self, piece: u8, sq: Square) {
+        debug_assert!((WP..=BK).contains(&piece));
+        debug_assert!(sq < 64);
+        debug_assert!(self.mailbox[sq as usize] == EMPTY);
+
+        let idx = sq as usize;
+        let bit = 1u64 << sq;
+
+        self.mailbox[idx] = piece;
+
+        self.pieces[(piece - 1) as usize] |= bit;
+
+        if piece <= WK {
+            self.occ[WHITE] |= bit;
+        } else {
+            self.occ[BLACK] |= bit;
+        }
+
+        self.occ[BOTH] |= bit;
+    }
+
+    #[inline(always)]
+    pub fn remove_piece(&mut self, sq: Square) -> u8 {
+        debug_assert!(sq < 64);
+        debug_assert!(self.mailbox[sq as usize] != EMPTY);
+
+        let idx = sq as usize;
+        let bit = !(1u64 << sq);
+
+        let piece = self.mailbox[idx];
+        self.mailbox[idx] = EMPTY;
+
+        self.pieces[(piece - 1) as usize] &= bit;
+
+        if piece <= WK {
+            self.occ[WHITE] &= bit;
+        } else {
+            self.occ[BLACK] &= bit;
+        }
+
+        self.occ[BOTH] &= bit;
+
+        piece
+    }
+
+    #[inline(always)]
+    pub fn move_piece(&mut self, from: Square, to: Square) {
+        debug_assert!(from < 64 && to < 64);
+
+        let from_idx = from as usize;
+        let to_idx = to as usize;
+
+        let piece = self.mailbox[from_idx];
+
+        debug_assert!(piece != EMPTY);
+        debug_assert!(self.mailbox[to_idx] == EMPTY);
+
+        let from_bit = 1u64 << from;
+        let to_bit = 1u64 << to;
+        let delta = from_bit | to_bit;
+
+        self.mailbox[from_idx] = EMPTY;
+        self.mailbox[to_idx] = piece;
+
+        self.pieces[(piece - 1) as usize] ^= delta;
+
+        if piece <= WK {
+            self.occ[WHITE] ^= delta;
+        } else {
+            self.occ[BLACK] ^= delta;
+        }
+
+        self.occ[BOTH] ^= delta;
+    }
+
+    #[inline(always)]
+    pub fn piece_at(&self, sq: Square) -> u8 {
+        self.mailbox[sq as usize]
     }
 
     fn recompute_incrementals(&mut self) {}

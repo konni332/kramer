@@ -5,7 +5,14 @@ pub const RANK_3: u64 = 0x0000000000FF0000;
 pub const RANK_6: u64 = 0x0000FF0000000000;
 
 pub const FILE_A: u64 = 0x0101010101010101;
+pub const FILE_B: u64 = 0x0202020202020202;
+pub const FILE_G: u64 = 0x4040404040404040;
 pub const FILE_H: u64 = 0x8080808080808080;
+
+pub const NOT_A: u64 = !FILE_A;
+pub const NOT_AB: u64 = !(FILE_A | FILE_B);
+pub const NOT_H: u64 = !FILE_H;
+pub const NOT_GH: u64 = !(FILE_G | FILE_H);
 
 pub const PROMO_RANK_WHITE: u64 = 0xFF00000000000000;
 pub const PROMO_RANK_BLACK: u64 = 0x00000000000000FF;

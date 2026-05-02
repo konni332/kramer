@@ -1,4 +1,5 @@
 mod generation;
+mod knight;
 mod pawns;
 
 pub type Bitboard = u64;

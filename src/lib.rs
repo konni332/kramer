@@ -3,6 +3,7 @@ use std::io::{self, Write};
 use std::{sync::mpsc, thread};
 use vampirc_uci::UciMessage;
 
+mod board;
 mod engine;
 pub mod error;
 mod logging;

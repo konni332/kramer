@@ -1,4 +1,4 @@
 use thiserror::Error;
 
 #[derive(Debug, Clone, Error)]
-pub enum ParseError {}
+pub enum FenError {}

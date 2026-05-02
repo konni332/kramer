@@ -1,3 +1,5 @@
+use crate::board::Square;
+
 pub const FLAG_CAPTURE: u32 = 1 << 24;
 pub const FLAG_DOUBLE: u32 = 1 << 25;
 pub const FLAG_EP: u32 = 1 << 26;
@@ -137,5 +139,94 @@ fn promo_char(piece: u8) -> char {
         4 | 10 => 'r',
         5 | 11 => 'q',
         _ => unreachable!("invalid promotion piece"),
+    }
+}
+
+#[inline(always)]
+pub fn sq(file: char, rank: char) -> Square {
+    let f = file as u8 - b'a';
+    let r = rank as u8 - b'1';
+    r * 8 + f
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::board::{BN, BP, WK, WN, WP, WQ, WR};
+
+    fn check(mv: Move, expected: &str) {
+        assert_eq!(mv.to_string(), expected, "move display mismatch");
+    }
+
+    #[test]
+    fn quiet_moves() {
+        check(Move::new(sq('e', '2'), sq('e', '4'), WP, 0, 0, 0), "e2e4");
+
+        check(Move::new(sq('e', '7'), sq('e', '5'), BP, 0, 0, 0), "e7e5");
+    }
+
+    #[test]
+    fn knight_moves() {
+        check(Move::new(sq('b', '1'), sq('c', '3'), WN, 0, 0, 0), "b1c3");
+
+        check(Move::new(sq('b', '1'), sq('a', '3'), WN, 0, 0, 0), "b1a3");
+    }
+
+    #[test]
+    fn rook_moves() {
+        check(Move::new(sq('a', '1'), sq('a', '3'), WR, 0, 0, 0), "a1a3");
+
+        check(Move::new(sq('h', '1'), sq('h', '5'), WR, 0, 0, 0), "h1h5");
+    }
+
+    #[test]
+    fn king_moves_and_castle_style() {
+        check(Move::new(sq('e', '1'), sq('g', '1'), WK, 0, 0, 0), "e1g1");
+
+        check(Move::new(sq('e', '1'), sq('c', '1'), WK, 0, 0, 0), "e1c1");
+    }
+
+    #[test]
+    fn promotions() {
+        check(
+            Move::new(sq('e', '7'), sq('e', '8'), WP, 0, WQ, FLAG_PROMOTION),
+            "e7e8q",
+        );
+
+        check(
+            Move::new(sq('e', '2'), sq('e', '1'), BP, 0, BN, FLAG_PROMOTION),
+            "e2e1n",
+        );
+    }
+
+    #[test]
+    fn mixed_promotion_captures() {
+        check(
+            Move::new(
+                sq('d', '7'),
+                sq('d', '8'),
+                WP,
+                BP,
+                WQ,
+                FLAG_CAPTURE | FLAG_PROMOTION,
+            ),
+            "d7d8q",
+        );
+    }
+
+    #[test]
+    fn edge_files() {
+        check(Move::new(sq('a', '1'), sq('h', '1'), WR, 0, 0, 0), "a1h1");
+
+        check(Move::new(sq('a', '8'), sq('h', '8'), WR, 0, 0, 0), "a8h8");
+    }
+
+    #[test]
+    fn identity_stability() {
+        let mv = Move::new(sq('e', '2'), sq('e', '4'), WP, 0, 0, 0);
+        let s = mv.to_string();
+
+        assert_eq!(s, "e2e4");
+        assert_eq!(mv.to_string(), s);
     }
 }

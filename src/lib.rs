@@ -9,6 +9,7 @@ pub mod error;
 mod fen;
 mod logging;
 mod moves;
+mod perft;
 mod uci;
 mod zobrist;
 

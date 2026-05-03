@@ -18,15 +18,19 @@ impl Board {
         if by_side == WHITE {
             let wp = self.pieces[WP as usize - 1];
             let bit = 1u64 << sq;
-            let attackers = ((bit & NOT_A) >> 7) | ((bit & NOT_H) >> 9);
-            if attackers & wp != 0 {
+            let from_right = (bit >> 7) & NOT_A;
+            let from_left = (bit >> 9) & NOT_H;
+            if (from_right | from_left) & wp != 0 {
                 return true;
             }
         } else {
             let bp = self.pieces[BP as usize - 1];
             let bit = 1u64 << sq;
-            let attackers = ((bit & NOT_H) << 7) | ((bit & NOT_A) << 9);
-            if attackers & bp != 0 {
+            // pawn on sq+7 attacks sq if that pawn is not on file H (would wrap)
+            // pawn on sq+9 attacks sq if that pawn is not on file A (would wrap)
+            let from_right = (bit << 7) & NOT_H; // potential pawn square to the right
+            let from_left = (bit << 9) & NOT_A; // potential pawn square to the left
+            if (from_right | from_left) & bp != 0 {
                 return true;
             }
         }

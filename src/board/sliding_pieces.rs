@@ -1,14 +1,14 @@
 use kramer_magic_bb::{bishop_attacks, queen_attacks, rook_attacks};
 
 use crate::{
-    board::{BLACK, BOTH, BR, Board, WHITE, WR},
+    board::{BB, BLACK, BOTH, BQ, BR, Board, WB, WHITE, WQ, WR},
     moves::MoveList,
 };
 
 impl Board {
     pub fn generate_bishop_moves(&self, list: &mut MoveList) {
         let white = self.side_to_move == WHITE as u8;
-        let piece = if white { WR } else { BR };
+        let piece = if white { WB } else { BB };
         let own = if white {
             self.occ[WHITE]
         } else {
@@ -62,7 +62,7 @@ impl Board {
     }
     pub fn generate_queen_moves(&self, list: &mut MoveList) {
         let white = self.side_to_move == WHITE as u8;
-        let piece = if white { WR } else { BR };
+        let piece = if white { WQ } else { BQ };
         let own = if white {
             self.occ[WHITE]
         } else {

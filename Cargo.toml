@@ -1,5 +1,5 @@
 [workspace]
-members = []
+members = ["kramer-magic-gen"]
 
 [package]
 name = "kramer"

@@ -1,9 +1,12 @@
 use crate::{
     board::{
-        BK, BLACK, Bitboard, Board, WHITE, WK,
-        generation::{NOT_A, NOT_H},
+        BK, BLACK, BOTH, Bitboard, Board, WHITE, WK,
+        generation::{
+            BK_EMPTY, BQ_EMPTY, CASTLE_BK, CASTLE_BQ, CASTLE_WK, CASTLE_WQ, NOT_A, NOT_H, WK_EMPTY,
+            WQ_EMPTY,
+        },
     },
-    moves::{FLAG_CAPTURE, Move, MoveList},
+    moves::{FLAG_CAPTURE, FLAG_CASTLE, Move, MoveList},
 };
 
 impl Board {
@@ -38,6 +41,29 @@ impl Board {
 
             self.push_quiets(from, quiet, piece, list);
             self.push_caps(from, caps, piece, list);
+        }
+
+        self.generate_castling(list);
+    }
+
+    fn generate_castling(&self, list: &mut MoveList) {
+        let white = self.side_to_move == WHITE as u8;
+        let occ = self.occ[BOTH];
+
+        if white {
+            if self.castling & CASTLE_WK != 0 && occ & WK_EMPTY == 0 {
+                list.push(Move::new(4, 6, WK, 0, 0, FLAG_CASTLE));
+            }
+            if self.castling & CASTLE_WQ != 0 && occ & WQ_EMPTY == 0 {
+                list.push(Move::new(4, 2, WK, 0, 0, FLAG_CASTLE));
+            }
+        } else {
+            if self.castling & CASTLE_BK != 0 && occ & BK_EMPTY == 0 {
+                list.push(Move::new(60, 62, BK, 0, 0, FLAG_CASTLE));
+            }
+            if self.castling & CASTLE_BQ != 0 && occ & BQ_EMPTY == 0 {
+                list.push(Move::new(60, 58, BK, 0, 0, FLAG_CASTLE));
+            }
         }
     }
 }

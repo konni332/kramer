@@ -50,7 +50,7 @@ impl Board {
         }
     }
 
-    fn push_knight_caps(&self, from: u8, mut bb: u64, piece: u8, list: &mut MoveList) {
+    fn push_knight_caps(&self, from: u8, mut bb: Bitboard, piece: u8, list: &mut MoveList) {
         while bb != 0 {
             let to = bb.trailing_zeros() as u8;
             bb &= bb - 1;

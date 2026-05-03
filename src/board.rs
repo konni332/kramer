@@ -1,4 +1,5 @@
 mod generation;
+mod king;
 mod knight;
 mod pawns;
 

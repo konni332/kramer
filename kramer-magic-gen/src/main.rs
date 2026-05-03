@@ -1,4 +1,5 @@
 mod bishop_mask;
+mod queen_mask;
 mod rook_mask;
 
 fn main() {

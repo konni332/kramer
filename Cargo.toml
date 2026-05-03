@@ -1,5 +1,5 @@
 [workspace]
-members = ["kramer-magic-gen"]
+members = ["kramer-magic-bb","kramer-magic-gen"]
 
 [package]
 name = "kramer"
@@ -21,3 +21,4 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 tracing-appender = "0.2"
 directories = "6"
+kramer-magic-bb = { path = "./kramer-magic-bb" }

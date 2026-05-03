@@ -3,7 +3,7 @@ use crate::{
         BB, BLACK, BN, BOTH, BP, BQ, BR, Bitboard, Board, WB, WHITE, WN, WP, WQ, WR,
         generation::{FILE_A, FILE_H, PROMO_RANK_BLACK, PROMO_RANK_WHITE, RANK_2, RANK_7},
     },
-    moves::{FLAG_CAPTURE, FLAG_DOUBLE, FLAG_PROMOTION, Move, MoveList},
+    moves::{FLAG_CAPTURE, FLAG_DOUBLE, FLAG_EP, FLAG_PROMOTION, Move, MoveList},
 };
 
 impl Board {
@@ -49,6 +49,23 @@ impl Board {
 
         self.push_white_caps_left(left, list);
         self.push_white_caps_right(right, list);
+
+        if self.ep_square != 64 {
+            let ep = self.ep_square;
+            let ep_bb = 1u64 << ep;
+
+            let left = ((pawns & !FILE_A) << 7) & ep_bb;
+            let right = ((pawns & !FILE_H) << 9) & ep_bb;
+
+            if left != 0 {
+                let from = ep - 7;
+                list.push(Move::new(from, ep, WP, BP, 0, FLAG_CAPTURE | FLAG_EP));
+            }
+            if right != 0 {
+                let from = ep - 9;
+                list.push(Move::new(from, ep, WP, BP, 0, FLAG_CAPTURE | FLAG_EP));
+            }
+        }
     }
 
     fn gen_black_pawns(
@@ -74,6 +91,23 @@ impl Board {
 
         self.push_black_caps_left(left, list);
         self.push_black_caps_right(right, list);
+
+        if self.ep_square != 64 {
+            let ep = self.ep_square;
+            let ep_bb = 1u64 << ep;
+
+            let left = ((pawns & !FILE_A) >> 9) & ep_bb;
+            let right = ((pawns & !FILE_H) >> 7) & ep_bb;
+
+            if left != 0 {
+                let from = ep + 9;
+                list.push(Move::new(from, ep, BP, WP, 0, FLAG_CAPTURE | FLAG_EP));
+            }
+            if right != 0 {
+                let from = ep + 7;
+                list.push(Move::new(from, ep, BP, WP, 0, FLAG_CAPTURE | FLAG_EP));
+            }
+        }
     }
 
     fn push_white_pushes(&self, mut bb: Bitboard, list: &mut MoveList) {
@@ -482,5 +516,114 @@ mod tests {
         let moves = collect(&board);
 
         assert!(!moves.contains(&"e4d5".to_string()));
+    }
+    #[test]
+    fn white_ep_capture_left() {
+        let mut board = Board::empty();
+        board.put_piece(WP, sq('e', '5'));
+        board.put_piece(BP, sq('d', '5'));
+        board.side_to_move = WHITE as u8;
+        board.ep_square = sq('d', '6');
+
+        let moves = collect(&board);
+
+        assert_contains(&moves, "e5d6");
+    }
+
+    #[test]
+    fn white_ep_capture_right() {
+        let mut board = Board::empty();
+        board.put_piece(WP, sq('e', '5'));
+        board.put_piece(BP, sq('f', '5'));
+        board.side_to_move = WHITE as u8;
+        board.ep_square = sq('f', '6');
+
+        let moves = collect(&board);
+
+        assert_contains(&moves, "e5f6");
+    }
+
+    #[test]
+    fn white_ep_both_sides() {
+        let mut board = Board::empty();
+        board.put_piece(WP, sq('e', '5'));
+        board.put_piece(BP, sq('d', '5'));
+        board.put_piece(BP, sq('f', '5'));
+        board.side_to_move = WHITE as u8;
+        board.ep_square = sq('f', '6');
+
+        let moves = collect(&board);
+
+        // only right ep is valid for this ep_square
+        assert_contains(&moves, "e5f6");
+        assert!(!moves.contains(&"e5d6".to_string()));
+    }
+
+    #[test]
+    fn black_ep_capture_left() {
+        let mut board = Board::empty();
+        board.put_piece(BP, sq('e', '4'));
+        board.put_piece(WP, sq('d', '4'));
+        board.side_to_move = BLACK as u8;
+        board.ep_square = sq('d', '3');
+
+        let moves = collect(&board);
+
+        assert_contains(&moves, "e4d3");
+    }
+
+    #[test]
+    fn black_ep_capture_right() {
+        let mut board = Board::empty();
+        board.put_piece(BP, sq('e', '4'));
+        board.put_piece(WP, sq('f', '4'));
+        board.side_to_move = BLACK as u8;
+        board.ep_square = sq('f', '3');
+
+        let moves = collect(&board);
+
+        assert_contains(&moves, "e4f3");
+    }
+
+    #[test]
+    fn ep_not_generated_when_none() {
+        let mut board = Board::empty();
+        board.put_piece(WP, sq('e', '5'));
+        board.put_piece(BP, sq('d', '5'));
+        board.side_to_move = WHITE as u8;
+        // ep_square defaults to 64 = none
+
+        let moves = collect(&board);
+
+        assert!(!moves.contains(&"e5d6".to_string()));
+    }
+
+    #[test]
+    fn ep_no_wrap_a_file() {
+        // black pawn on a4, white pawn doubled to h4 — ep square on h3
+        // a-file pawn must not wrap around and generate ep capture
+        let mut board = Board::empty();
+        board.put_piece(BP, sq('a', '4'));
+        board.put_piece(WP, sq('h', '4'));
+        board.side_to_move = BLACK as u8;
+        board.ep_square = sq('h', '3');
+
+        let moves = collect(&board);
+
+        assert!(!moves.contains(&"a4h3".to_string()));
+    }
+
+    #[test]
+    fn ep_no_wrap_h_file() {
+        // white pawn on h5, black pawn doubled to a5 — ep square on a6
+        let mut board = Board::empty();
+        board.put_piece(WP, sq('h', '5'));
+        board.put_piece(BP, sq('a', '5'));
+        board.side_to_move = WHITE as u8;
+        board.ep_square = sq('a', '6');
+
+        let moves = collect(&board);
+
+        assert!(!moves.contains(&"h5a6".to_string()));
     }
 }

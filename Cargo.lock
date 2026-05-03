@@ -248,12 +248,17 @@ name = "kramer"
 version = "0.1.0"
 dependencies = [
  "directories",
+ "kramer-magic-bb",
  "thiserror",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
  "vampirc-uci",
 ]
+
+[[package]]
+name = "kramer-magic-bb"
+version = "0.1.0"
 
 [[package]]
 name = "kramer-magic-gen"

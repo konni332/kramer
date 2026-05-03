@@ -1,4 +1,4 @@
-const fn bishop_mask(square: u8) -> u64 {
+pub const fn bishop_mask(square: u8) -> u64 {
     let mut mask = 0u64;
     let rank = square / 8;
     let file = square % 8;

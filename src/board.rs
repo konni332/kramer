@@ -1,7 +1,10 @@
+use crate::moves::{FLAG_CAPTURE, Move, MoveList};
+
 mod generation;
 mod king;
 mod knight;
 mod pawns;
+mod sliding_pieces;
 
 pub type Bitboard = u64;
 pub type Square = u8;
@@ -175,6 +178,23 @@ impl Board {
     #[inline(always)]
     pub fn piece_at(&self, sq: Square) -> u8 {
         self.mailbox[sq as usize]
+    }
+
+    fn push_quiets(&self, from: u8, mut bb: Bitboard, piece: u8, list: &mut MoveList) {
+        while bb != 0 {
+            let to = bb.trailing_zeros() as u8;
+            bb &= bb - 1;
+            list.push(Move::new(from, to, piece, 0, 0, 0));
+        }
+    }
+
+    fn push_caps(&self, from: u8, mut bb: Bitboard, piece: u8, list: &mut MoveList) {
+        while bb != 0 {
+            let to = bb.trailing_zeros() as u8;
+            bb &= bb - 1;
+            let captured = self.mailbox[to as usize];
+            list.push(Move::new(from, to, piece, captured, 0, FLAG_CAPTURE));
+        }
     }
 
     fn recompute_incrementals(&mut self) {}

@@ -36,28 +36,8 @@ impl Board {
             let quiet = attacks & !enemy;
             let caps = attacks & enemy;
 
-            self.push_knight_quiets(from, quiet, piece, list);
-            self.push_knight_caps(from, caps, piece, list);
-        }
-    }
-
-    fn push_knight_quiets(&self, from: u8, mut bb: Bitboard, piece: u8, list: &mut MoveList) {
-        while bb != 0 {
-            let to = bb.trailing_zeros() as u8;
-            bb &= bb - 1;
-
-            list.push(Move::new(from, to, piece, 0, 0, 0));
-        }
-    }
-
-    fn push_knight_caps(&self, from: u8, mut bb: Bitboard, piece: u8, list: &mut MoveList) {
-        while bb != 0 {
-            let to = bb.trailing_zeros() as u8;
-            bb &= bb - 1;
-
-            let captured = self.mailbox[to as usize];
-
-            list.push(Move::new(from, to, piece, captured, 0, FLAG_CAPTURE));
+            self.push_quiets(from, quiet, piece, list);
+            self.push_caps(from, caps, piece, list);
         }
     }
 }

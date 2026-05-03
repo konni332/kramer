@@ -1,0 +1,10 @@
+[package]
+name = "kramer-magic-bb"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "kramer_magic_bb"
+path = "src/lib.rs"
+
+[dependencies]

@@ -1,4 +1,4 @@
-const fn rook_mask(square: u8) -> u64 {
+pub const fn rook_mask(square: u8) -> u64 {
     let mut mask = 0u64;
 
     let rank = square / 8;
@@ -35,7 +35,7 @@ const fn rook_mask(square: u8) -> u64 {
     mask
 }
 
-pub const ROOK_MASK: [u64; 64] = {
+pub const ROOK_MASKS: [u64; 64] = {
     let mut table = [0u64; 64];
     let mut i = 0;
 
@@ -218,7 +218,7 @@ mod tests {
     fn rook_mask_table_matches_function() {
         for sq in 0u8..64 {
             assert_eq!(
-                ROOK_MASK[sq as usize],
+                ROOK_MASKS[sq as usize],
                 rook_mask(sq),
                 "ROOK_MASK[{}] does not match rook_mask({})",
                 sq,
@@ -230,7 +230,7 @@ mod tests {
     #[test]
     fn rook_mask_table_no_all_zero_squares() {
         for sq in 0..64 {
-            assert_ne!(ROOK_MASK[sq], 0, "ROOK_MASK[{}] should not be zero", sq);
+            assert_ne!(ROOK_MASKS[sq], 0, "ROOK_MASK[{}] should not be zero", sq);
         }
     }
 }

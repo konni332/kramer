@@ -1,12 +1,12 @@
 use crate::{
     board::{
-        BK, BLACK, BOTH, Bitboard, Board, WHITE, WK,
+        BK, BLACK, BOTH, Board, WHITE, WK,
         generation::{
             BK_EMPTY, BQ_EMPTY, CASTLE_BK, CASTLE_BQ, CASTLE_WK, CASTLE_WQ, NOT_A, NOT_H, WK_EMPTY,
             WQ_EMPTY,
         },
     },
-    moves::{FLAG_CAPTURE, FLAG_CASTLE, Move, MoveList},
+    moves::{FLAG_CASTLE, Move, MoveList},
 };
 
 impl Board {
@@ -68,7 +68,7 @@ impl Board {
     }
 }
 
-const KING_ATTACKS: [u64; 64] = build_king_table();
+pub const KING_ATTACKS: [u64; 64] = build_king_table();
 
 const fn build_king_table() -> [u64; 64] {
     let mut table = [0u64; 64];

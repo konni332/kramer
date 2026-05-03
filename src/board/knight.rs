@@ -67,7 +67,7 @@ const fn build_knight_table() -> [u64; 64] {
     table
 }
 
-const KNIGHT_ATTACKS: [u64; 64] = build_knight_table();
+pub const KNIGHT_ATTACKS: [u64; 64] = build_knight_table();
 
 #[cfg(test)]
 mod tests {

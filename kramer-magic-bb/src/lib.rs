@@ -25,3 +25,14 @@ pub const fn bishop_attacks(sq: usize, occ: u64) -> u64 {
 pub const fn queen_attacks(sq: usize, occ: u64) -> u64 {
     rook_attacks(sq, occ) | bishop_attacks(sq, occ)
 }
+
+// quick sanity check — a1 rook with no blockers should attack all of file a and rank 1 except edges
+#[test]
+fn rook_table_sanity() {
+    use crate::rook_attacks::rook_attacks_on_the_fly;
+    for sq in 0..64usize {
+        let expected = rook_attacks_on_the_fly(sq as u8, 0);
+        let got = rook_attacks(sq, 0);
+        assert_eq!(expected, got, "mismatch at sq={} with no blockers", sq);
+    }
+}

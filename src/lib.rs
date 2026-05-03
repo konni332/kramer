@@ -10,6 +10,7 @@ mod fen;
 mod logging;
 mod moves;
 mod uci;
+mod zobrist;
 
 pub fn run() {
     let _guard = logging::init();

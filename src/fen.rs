@@ -152,6 +152,8 @@ impl Board {
 
         board.fullmove_number = parts[5].parse().map_err(|_| FenError::Fullmove)?;
 
+        board.zobrist = board.compute_zobrist();
+
         Ok(board)
     }
 

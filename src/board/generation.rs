@@ -28,3 +28,14 @@ pub const WK_EMPTY: u64 = (1 << 5) | (1 << 6); // f1, g1
 pub const WQ_EMPTY: u64 = (1 << 1) | (1 << 2) | (1 << 3); // b1, c1, d1
 pub const BK_EMPTY: u64 = (1 << 61) | (1 << 62); // f8, g8
 pub const BQ_EMPTY: u64 = (1 << 57) | (1 << 58) | (1 << 59); // b8, c8, d8
+
+pub const CASTLING_RIGHTS_MASK: [u8; 64] = {
+    let mut table = [0xFFu8; 64];
+    table[0] &= !2; // a1 — clears WQ
+    table[7] &= !1; // h1 — clears WK
+    table[4] &= !3; // e1 — clears WK and WQ
+    table[56] &= !8; // a8 — clears BQ
+    table[63] &= !4; // h8 — clears BK
+    table[60] &= !12; // e8 — clears BK and BQ
+    table
+};

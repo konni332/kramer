@@ -29,8 +29,8 @@ impl Board {
             let quiet = attacks & !enemy;
             let caps = attacks & enemy;
 
-            self.push_quiets(from, bb, piece, list);
-            self.push_caps(from, bb, piece, list);
+            self.push_quiets(from, quiet, piece, list);
+            self.push_caps(from, caps, piece, list);
         }
     }
     pub fn generate_rook_moves(&self, list: &mut MoveList) {
@@ -56,8 +56,8 @@ impl Board {
             let quiet = attacks & !enemy;
             let caps = attacks & enemy;
 
-            self.push_quiets(from, bb, piece, list);
-            self.push_caps(from, bb, piece, list);
+            self.push_quiets(from, quiet, piece, list);
+            self.push_caps(from, caps, piece, list);
         }
     }
     pub fn generate_queen_moves(&self, list: &mut MoveList) {
@@ -83,8 +83,8 @@ impl Board {
             let quiet = attacks & !enemy;
             let caps = attacks & enemy;
 
-            self.push_quiets(from, bb, piece, list);
-            self.push_caps(from, bb, piece, list);
+            self.push_quiets(from, quiet, piece, list);
+            self.push_caps(from, caps, piece, list);
         }
     }
 }

@@ -1,6 +1,5 @@
 use crate::engine::Engine;
 use crossbeam::channel::unbounded;
-use crossbeam::select;
 use std::io::{self, Write};
 use std::thread;
 use vampirc_uci::UciMessage;
@@ -15,7 +14,9 @@ mod perft;
 mod uci;
 mod zobrist;
 
-pub fn run() {
+pub use logging::log_location;
+
+pub fn run_engine() {
     let _guard = logging::init();
     logging::install_panic_hook();
 

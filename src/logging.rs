@@ -27,6 +27,10 @@ fn log_dir() -> PathBuf {
     }
 }
 
+pub fn log_location() -> PathBuf {
+    log_dir().join("kramer.log")
+}
+
 pub fn init() -> WorkerGuard {
     let dir = log_dir();
     fs::create_dir_all(&dir).expect("failed to create log directory");

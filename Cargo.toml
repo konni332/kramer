@@ -23,3 +23,6 @@ tracing-appender = "0.2"
 directories = "6"
 kramer-magic-bb = { path = "./kramer-magic-bb" }
 crossbeam = "0.8"
+clap = { version = "4", features = ["derive"] }
+open = "5"
+miette = { version = "7", features = ["fancy"] }

@@ -1,6 +1,8 @@
 use crate::engine::Engine;
+use crossbeam::channel::unbounded;
+use crossbeam::select;
 use std::io::{self, Write};
-use std::{sync::mpsc, thread};
+use std::thread;
 use vampirc_uci::UciMessage;
 
 mod board;
@@ -19,31 +21,34 @@ pub fn run() {
 
     tracing::info!("kramer boot");
 
-    let (tx, rx) = mpsc::channel::<UciMessage>();
+    // command channel (uci -> engine)
+    let (cmd_tx, cmd_rx) = unbounded::<UciMessage>();
+    // output channel (uci -> stdout)
+    let (out_tx, out_rx) = unbounded::<UciMessage>();
 
     let engine_thread = thread::spawn(move || {
-        let mut engine = Engine::new();
+        let mut engine = Engine::new(out_tx);
 
-        while let Ok(cmd) = rx.recv() {
+        while let Ok(cmd) = cmd_rx.recv() {
             if matches!(cmd, UciMessage::Quit) {
                 break;
             }
 
-            let messages = engine.command(cmd);
-
-            let stdout = io::stdout();
-            let mut out = stdout.lock();
-
-            for msg in messages {
-                writeln!(out, "{msg}").expect("failed to write message to stdout");
-            }
-            out.flush().expect("failed to flush stdout");
+            engine.command(cmd);
         }
     });
 
     let uci = thread::spawn(move || {
-        uci::run(tx).unwrap();
+        uci::run(cmd_tx).unwrap();
     });
+
+    let stdout = io::stdout();
+    let mut out = stdout.lock();
+
+    while let Ok(msg) = out_rx.recv() {
+        writeln!(out, "{msg}").expect("failed to write stdout");
+        out.flush().expect("failed to flush stdout");
+    }
 
     uci.join().expect("uci thread panicked");
     engine_thread.join().expect("engine thread panicked");

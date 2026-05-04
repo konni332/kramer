@@ -22,3 +22,4 @@ tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 tracing-appender = "0.2"
 directories = "6"
 kramer-magic-bb = { path = "./kramer-magic-bb" }
+crossbeam = "0.8"

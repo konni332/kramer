@@ -3,6 +3,8 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
+use vampirc_uci::UciMessage;
+
 use crate::{
     board::Board,
     moves::{Move, MoveList},

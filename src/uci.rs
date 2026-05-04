@@ -1,8 +1,6 @@
-use std::{
-    io::{self, BufRead},
-    sync::mpsc::Sender,
-};
+use std::io::{self, BufRead};
 
+use crossbeam::channel::Sender;
 use vampirc_uci::{UciMessage, parse_one};
 
 pub fn run(tx: Sender<UciMessage>) -> io::Result<()> {

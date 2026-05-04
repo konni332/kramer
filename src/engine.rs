@@ -1,5 +1,4 @@
 use std::{
-    io::{self, Write},
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -7,7 +6,8 @@ use std::{
     thread,
 };
 
-use vampirc_uci::{MessageList, UciMessage, UciMove, UciOptionConfig};
+use crossbeam::channel::Sender;
+use vampirc_uci::{MessageList, UciMessage, UciMove, UciOptionConfig, UciSquare};
 
 use crate::{board::Board, moves::MoveList};
 
@@ -20,6 +20,7 @@ pub struct Engine {
 
     stop_flag: Arc<AtomicBool>,
     search_thread: Option<thread::JoinHandle<()>>,
+    out_tx: Sender<UciMessage>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,9 +30,14 @@ pub struct EngineOptions {
 }
 
 impl Engine {
-    pub fn new() -> Self {
+    pub fn new(out_tx: Sender<UciMessage>) -> Self {
         Self {
-            ..Default::default()
+            debug: false,
+            options: EngineOptions::default(),
+            board: Board::empty(),
+            stop_flag: Arc::new(AtomicBool::new(false)),
+            search_thread: None,
+            out_tx,
         }
     }
     fn stop_search(&mut self) {
@@ -41,18 +47,25 @@ impl Engine {
         }
     }
 
-    pub fn command(&mut self, cmd: UciMessage) -> MessageList {
-        let mut responses = MessageList::new();
+    fn send_msg(&self, msg: UciMessage) {
+        if let Err(err) = self.out_tx.send(msg) {
+            tracing::error!(?err, "channel error sending result");
+        }
+    }
+
+    pub fn command(&mut self, cmd: UciMessage) {
         match cmd {
             UciMessage::Uci => {
-                responses.push(self.id());
-                responses.push(self.author());
-                responses.extend(self.options());
-                responses.push(UciMessage::UciOk);
+                self.send_msg(self.id());
+                self.send_msg(self.author());
+                for opt in self.options() {
+                    self.send_msg(opt);
+                }
+                self.send_msg(UciMessage::UciOk);
                 self.setup();
             }
             UciMessage::IsReady => {
-                responses.push(UciMessage::ReadyOk);
+                self.send_msg(UciMessage::ReadyOk);
             }
             UciMessage::Debug(debug) => {
                 self.debug = debug;
@@ -79,7 +92,7 @@ impl Engine {
                         Ok(board) => board,
                         Err(err) => {
                             tracing::error!(?err, "Error parsing FEN position");
-                            return responses;
+                            return;
                         }
                     }
                 }
@@ -99,7 +112,7 @@ impl Engine {
                         }
                         None => {
                             tracing::error!(?mv_str, "illegal or unknown move in position command");
-                            return responses;
+                            return;
                         }
                     }
                 }
@@ -107,29 +120,29 @@ impl Engine {
             UciMessage::Go { search_control, .. } => {
                 self.stop_search();
 
+                let depth = search_control.as_ref().and_then(|sc| sc.depth).unwrap_or(6);
+
                 self.stop_flag.store(false, Ordering::Relaxed);
                 let stop = Arc::clone(&self.stop_flag);
-
-                let depth = search_control.as_ref().and_then(|sc| sc.depth).unwrap_or(6);
+                let tx = self.out_tx.clone();
 
                 // clone board for search thread (Board is Copy)
                 let mut board = self.board;
 
                 let handle = thread::spawn(move || {
                     let mv = board.best_move(depth, &stop);
-                    let stdout = io::stdout();
-                    let mut out = stdout.lock();
-                    match mv {
-                        Some(mv) => {
-                            let uci_mv: UciMove = mv.into();
-                            writeln!(out, "bestmove {}", uci_mv)
-                                .expect("failed to write to stdout");
-                        }
-                        None => {
-                            writeln!(out, "bestmove 0000").expect("failed to write to stdout");
-                        }
+                    let msg = match mv {
+                        Some(mv) => UciMessage::best_move(mv.into()),
+                        // invalid bestmove output (bestmove 0000)
+                        None => UciMessage::BestMove {
+                            best_move: invalid_uci_move(),
+                            ponder: None,
+                        },
+                    };
+
+                    if let Err(err) = tx.send(msg) {
+                        tracing::error!(?err, "channel error sending search result");
                     }
-                    out.flush().expect("failed to flush stdout");
                 });
 
                 self.search_thread = Some(handle);
@@ -148,7 +161,6 @@ impl Engine {
                 tracing::debug!(?cmd, "engine received command");
             }
         };
-        responses
     }
 
     fn id(&self) -> UciMessage {
@@ -254,14 +266,10 @@ impl Default for EngineOptions {
     }
 }
 
-impl Default for Engine {
-    fn default() -> Self {
-        Self {
-            debug: false,
-            options: EngineOptions::default(),
-            board: Board::empty(),
-            stop_flag: Arc::new(AtomicBool::new(false)),
-            search_thread: None,
-        }
+fn invalid_uci_move() -> UciMove {
+    UciMove {
+        from: UciSquare::default(),
+        to: UciSquare::default(),
+        promotion: None,
     }
 }

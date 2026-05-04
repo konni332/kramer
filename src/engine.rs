@@ -1,13 +1,25 @@
-use vampirc_uci::{MessageList, UciMessage, UciOptionConfig};
+use std::{
+    io::{self, Write},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    thread,
+};
+
+use vampirc_uci::{MessageList, UciMessage, UciMove, UciOptionConfig};
 
 use crate::{board::Board, moves::MoveList};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct Engine {
     debug: bool,
     options: EngineOptions,
 
     board: Board,
+
+    stop_flag: Arc<AtomicBool>,
+    search_thread: Option<thread::JoinHandle<()>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,7 +34,12 @@ impl Engine {
             ..Default::default()
         }
     }
-    pub fn reset(&mut self) {}
+    fn stop_search(&mut self) {
+        self.stop_flag.store(true, Ordering::Relaxed);
+        if let Some(handle) = self.search_thread.take() {
+            handle.join().ok();
+        }
+    }
 
     pub fn command(&mut self, cmd: UciMessage) -> MessageList {
         let mut responses = MessageList::new();
@@ -47,7 +64,6 @@ impl Engine {
                 tracing::info!("registration is not necessary for Kramer");
             }
             UciMessage::UciNewGame => {
-                self.reset();
                 tracing::info!("uci new game");
             }
             UciMessage::Position {
@@ -88,26 +104,43 @@ impl Engine {
                     }
                 }
             }
-            UciMessage::Go {
-                time_control,
-                search_control,
-            } => {
+            UciMessage::Go { search_control, .. } => {
+                self.stop_search();
+
+                self.stop_flag.store(false, Ordering::Relaxed);
+                let stop = Arc::clone(&self.stop_flag);
+
                 let depth = search_control.as_ref().and_then(|sc| sc.depth).unwrap_or(6);
 
-                match self.board.best_move(depth) {
-                    Some(mv) => {
-                        responses.push(UciMessage::BestMove {
-                            best_move: mv.into(),
-                            ponder: None,
-                        });
+                // clone board for search thread (Board is Copy)
+                let mut board = self.board;
+
+                let handle = thread::spawn(move || {
+                    let mv = board.best_move(depth, &stop);
+                    let stdout = io::stdout();
+                    let mut out = stdout.lock();
+                    match mv {
+                        Some(mv) => {
+                            let uci_mv: UciMove = mv.into();
+                            writeln!(out, "bestmove {}", uci_mv)
+                                .expect("failed to write to stdout");
+                        }
+                        None => {
+                            writeln!(out, "bestmove 0000").expect("failed to write to stdout");
+                        }
                     }
-                    None => {
-                        tracing::warn!("no legal moves available");
-                    }
-                }
+                    out.flush().expect("failed to flush stdout");
+                });
+
+                self.search_thread = Some(handle);
             }
-            UciMessage::Stop => {}
-            UciMessage::PonderHit => {}
+            UciMessage::Stop => {
+                self.stop_search();
+                tracing::info!("search stopped");
+            }
+            UciMessage::PonderHit => {
+                tracing::info!("received ponderhit command(noop)");
+            }
             UciMessage::Quit => {
                 tracing::debug!("engine received quit");
             }
@@ -227,6 +260,8 @@ impl Default for Engine {
             debug: false,
             options: EngineOptions::default(),
             board: Board::empty(),
+            stop_flag: Arc::new(AtomicBool::new(false)),
+            search_thread: None,
         }
     }
 }

@@ -35,9 +35,9 @@ pub fn run() {
             let mut out = stdout.lock();
 
             for msg in messages {
-                writeln!(out, "{msg}").unwrap();
+                writeln!(out, "{msg}").expect("failed to write message to stdout");
             }
-            out.flush().unwrap();
+            out.flush().expect("failed to flush stdout");
         }
     });
 

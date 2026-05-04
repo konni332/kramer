@@ -1,3 +1,8 @@
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
+
 use crate::{
     board::Board,
     moves::{Move, MoveList},
@@ -7,7 +12,11 @@ pub const INF: i32 = 1_000_000;
 pub const MATE_SCORE: i32 = 900_000;
 
 impl Board {
-    pub fn negamax(&mut self, depth: u8, mut alpha: i32, beta: i32) -> i32 {
+    pub fn negamax(&mut self, depth: u8, mut alpha: i32, beta: i32, stop: &Arc<AtomicBool>) -> i32 {
+        if stop.load(Ordering::Relaxed) {
+            return 0;
+        }
+
         if depth == 0 {
             return self.evaluate();
         }
@@ -30,7 +39,7 @@ impl Board {
 
         for &mv in list.as_slice() {
             let undo = self.make_move(mv);
-            let score = -self.negamax(depth - 1, -beta, -alpha);
+            let score = -self.negamax(depth - 1, -beta, -alpha, stop);
             self.unmake_move(mv, undo);
 
             if score > best {
@@ -47,7 +56,7 @@ impl Board {
         best
     }
 
-    pub fn best_move(&mut self, depth: u8) -> Option<Move> {
+    pub fn best_move(&mut self, depth: u8, stop: &Arc<AtomicBool>) -> Option<Move> {
         let mut list = MoveList::new();
         self.generate_legal_moves(&mut list);
 
@@ -62,7 +71,7 @@ impl Board {
 
         for &mv in list.as_slice() {
             let undo = self.make_move(mv);
-            let score = -self.negamax(depth - 1, -beta, -alpha);
+            let score = -self.negamax(depth - 1, -beta, -alpha, stop);
             self.unmake_move(mv, undo);
 
             if score > best_score {

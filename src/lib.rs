@@ -8,18 +8,13 @@ mod board;
 mod engine;
 pub mod error;
 mod fen;
-mod logging;
+pub mod logging;
 mod moves;
 mod perft;
 mod uci;
 mod zobrist;
 
-pub use logging::log_location;
-
 pub fn run_engine() {
-    let _guard = logging::init();
-    logging::install_panic_hook();
-
     tracing::info!("kramer boot");
 
     // command channel (uci -> engine)

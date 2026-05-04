@@ -4,11 +4,13 @@ use crate::{
     zobrist::{ZOBRIST_CASTLING, ZOBRIST_EP, ZOBRIST_PIECE, ZOBRIST_SIDE},
 };
 
+mod eval;
 mod generation;
 mod king;
 mod knight;
 mod legality_filter;
 mod pawns;
+mod search;
 mod sliding_pieces;
 
 pub type Bitboard = u64;

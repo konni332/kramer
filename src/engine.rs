@@ -1,6 +1,6 @@
 use vampirc_uci::{MessageList, UciMessage, UciOptionConfig};
 
-use crate::board::Board;
+use crate::{board::Board, moves::MoveList};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Engine {
@@ -68,12 +68,44 @@ impl Engine {
                     }
                 }
 
-                // apply moves here later
+                for mv in moves {
+                    let mv_str = mv.to_string();
+                    let mut list = MoveList::new();
+                    self.board.generate_legal_moves(&mut list);
+                    let found = list
+                        .as_slice()
+                        .iter()
+                        .find(|m| m.to_string() == mv_str)
+                        .copied();
+                    match found {
+                        Some(m) => {
+                            self.board.make_move(m);
+                        }
+                        None => {
+                            tracing::error!(?mv_str, "illegal or unknown move in position command");
+                            return responses;
+                        }
+                    }
+                }
             }
             UciMessage::Go {
                 time_control,
                 search_control,
-            } => {}
+            } => {
+                let depth = search_control.as_ref().and_then(|sc| sc.depth).unwrap_or(6);
+
+                match self.board.best_move(depth) {
+                    Some(mv) => {
+                        responses.push(UciMessage::BestMove {
+                            best_move: mv.into(),
+                            ponder: None,
+                        });
+                    }
+                    None => {
+                        tracing::warn!("no legal moves available");
+                    }
+                }
+            }
             UciMessage::Stop => {}
             UciMessage::PonderHit => {}
             UciMessage::Quit => {

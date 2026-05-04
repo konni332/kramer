@@ -1,3 +1,5 @@
+use vampirc_uci::{UciMove, UciPiece, UciSquare};
+
 use crate::board::Square;
 
 pub const FLAG_CAPTURE: u32 = 1 << 24;
@@ -118,6 +120,52 @@ impl std::fmt::Display for Move {
         }
 
         Ok(())
+    }
+}
+
+impl From<UciMove> for Move {
+    fn from(value: UciMove) -> Self {
+        let from = sq_from_uci(value.from);
+        let to = sq_from_uci(value.to);
+        // we don't have full board context here so we can't fill piece/captured
+        // this is only used for parsing position moves, where we match by from/to string
+        // so piece and captured don't matter — we look up the real move from the legal list
+        Move::new(from, to, 0, 0, 0, 0)
+    }
+}
+
+impl From<Move> for UciMove {
+    fn from(value: Move) -> Self {
+        let promo = if value.is_promotion() {
+            Some(match value.promo() {
+                2 | 8 => UciPiece::Knight,
+                3 | 9 => UciPiece::Bishop,
+                4 | 10 => UciPiece::Rook,
+                5 | 11 => UciPiece::Queen,
+                _ => unreachable!("invalid promotion piece"),
+            })
+        } else {
+            None
+        };
+
+        UciMove {
+            from: sq_to_uci(value.from()),
+            to: sq_to_uci(value.to()),
+            promotion: promo,
+        }
+    }
+}
+
+fn sq_from_uci(sq: UciSquare) -> u8 {
+    let file = sq.file as u8 - b'a';
+    let rank = sq.rank - 1;
+    rank * 8 + file
+}
+
+fn sq_to_uci(sq: u8) -> UciSquare {
+    UciSquare {
+        file: (b'a' + (sq % 8)) as char,
+        rank: (sq / 8) + 1,
     }
 }
 

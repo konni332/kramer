@@ -68,7 +68,7 @@ impl Board {
 
         let mut best_move = None;
         let mut best_score = -INF;
-        let alpha = -INF;
+        let mut alpha = -INF;
         let beta = INF;
 
         for &mv in list.as_slice() {
@@ -79,6 +79,10 @@ impl Board {
             if score > best_score {
                 best_score = score;
                 best_move = Some(mv);
+            }
+
+            if score > alpha {
+                alpha = score;
             }
         }
 

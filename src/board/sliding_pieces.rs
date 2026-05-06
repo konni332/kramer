@@ -87,4 +87,72 @@ impl Board {
             self.push_caps(from, caps, piece, list);
         }
     }
+    pub fn generate_bishop_captures(&self, list: &mut MoveList) {
+        let white = self.side_to_move == WHITE as u8;
+        let piece = if white { WB } else { BB };
+        let own = if white {
+            self.occ[WHITE]
+        } else {
+            self.occ[BLACK]
+        };
+        let enemy = if white {
+            self.occ[BLACK]
+        } else {
+            self.occ[WHITE]
+        };
+
+        let mut bb = self.pieces[piece as usize - 1];
+        while bb != 0 {
+            let from = bb.trailing_zeros() as u8;
+            bb &= bb - 1;
+            let caps = bishop_attacks(from as usize, self.occ[BOTH]) & !own & enemy;
+            self.push_caps(from, caps, piece, list);
+        }
+    }
+
+    pub fn generate_rook_captures(&self, list: &mut MoveList) {
+        let white = self.side_to_move == WHITE as u8;
+        let piece = if white { WR } else { BR };
+        let own = if white {
+            self.occ[WHITE]
+        } else {
+            self.occ[BLACK]
+        };
+        let enemy = if white {
+            self.occ[BLACK]
+        } else {
+            self.occ[WHITE]
+        };
+
+        let mut bb = self.pieces[piece as usize - 1];
+        while bb != 0 {
+            let from = bb.trailing_zeros() as u8;
+            bb &= bb - 1;
+            let caps = rook_attacks(from as usize, self.occ[BOTH]) & !own & enemy;
+            self.push_caps(from, caps, piece, list);
+        }
+    }
+
+    pub fn generate_queen_captures(&self, list: &mut MoveList) {
+        let white = self.side_to_move == WHITE as u8;
+        let piece = if white { WQ } else { BQ };
+        let own = if white {
+            self.occ[WHITE]
+        } else {
+            self.occ[BLACK]
+        };
+        let enemy = if white {
+            self.occ[BLACK]
+        } else {
+            self.occ[WHITE]
+        };
+
+        let mut bb = self.pieces[piece as usize - 1];
+        while bb != 0 {
+            let from = bb.trailing_zeros() as u8;
+            bb &= bb - 1;
+            let caps = queen_attacks(from as usize, self.occ[BOTH]) & !own & enemy;
+            self.push_caps(from, caps, piece, list);
+        }
+    }
 }

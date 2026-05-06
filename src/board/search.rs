@@ -173,7 +173,7 @@ impl Board {
 
         // generate only captures
         let mut list = MoveList::new();
-        self.generate_legal_moves(&mut list);
+        self.generate_capture_moves(&mut list);
 
         for &mv in list.as_slice() {
             if !mv.is_capture() {
@@ -197,5 +197,14 @@ impl Board {
         }
 
         alpha
+    }
+
+    pub fn generate_capture_moves(&self, list: &mut MoveList) {
+        self.generate_pawn_captures(list);
+        self.generate_knight_captures(list);
+        self.generate_bishop_captures(list);
+        self.generate_rook_captures(list);
+        self.generate_queen_captures(list);
+        self.generate_king_captures(list);
     }
 }

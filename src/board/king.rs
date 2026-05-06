@@ -46,7 +46,30 @@ impl Board {
         self.generate_castling(list);
     }
 
-    fn generate_castling(&self, list: &mut MoveList) {
+    pub fn generate_king_captures(&self, list: &mut MoveList) {
+        let white = self.side_to_move == WHITE as u8;
+        let piece = if white { WK } else { BK };
+        let own = if white {
+            self.occ[WHITE]
+        } else {
+            self.occ[BLACK]
+        };
+        let enemy = if white {
+            self.occ[BLACK]
+        } else {
+            self.occ[WHITE]
+        };
+
+        let king = self.pieces[piece as usize - 1];
+        if king == 0 {
+            return;
+        }
+        let from = king.trailing_zeros() as u8;
+        let caps = KING_ATTACKS[from as usize] & !own & enemy;
+        self.push_caps(from, caps, piece, list);
+    }
+
+    pub fn generate_castling(&self, list: &mut MoveList) {
         let white = self.side_to_move == WHITE as u8;
         let occ = self.occ[BOTH];
 

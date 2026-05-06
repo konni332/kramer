@@ -40,6 +40,28 @@ impl Board {
             self.push_caps(from, caps, piece, list);
         }
     }
+    pub fn generate_knight_captures(&self, list: &mut MoveList) {
+        let white = self.side_to_move == WHITE as u8;
+        let piece = if white { WN } else { BN };
+        let own = if white {
+            self.occ[WHITE]
+        } else {
+            self.occ[BLACK]
+        };
+        let enemy = if white {
+            self.occ[BLACK]
+        } else {
+            self.occ[WHITE]
+        };
+
+        let mut bb = self.pieces[piece as usize - 1];
+        while bb != 0 {
+            let from = bb.trailing_zeros() as u8;
+            bb &= bb - 1;
+            let caps = KNIGHT_ATTACKS[from as usize] & !own & enemy;
+            self.push_caps(from, caps, piece, list);
+        }
+    }
 }
 
 const fn knight_attacks(sq: u8) -> u64 {

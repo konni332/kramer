@@ -258,6 +258,56 @@ impl Board {
         list.push(Move::new(from, to, BP, cap, BB, flags));
         list.push(Move::new(from, to, BP, cap, BN, flags));
     }
+
+    pub fn generate_pawn_captures(&self, list: &mut MoveList) {
+        let white = self.side_to_move == WHITE as u8;
+        let pawns = self.pieces[(if white { WP } else { BP }) as usize - 1];
+        let enemy = if white {
+            self.occ[BLACK]
+        } else {
+            self.occ[WHITE]
+        };
+
+        if white {
+            let left = ((pawns & !FILE_A) << 7) & enemy;
+            let right = ((pawns & !FILE_H) << 9) & enemy;
+            self.push_white_caps_left(left, list);
+            self.push_white_caps_right(right, list);
+
+            // ep
+            if self.ep_square != 64 {
+                let ep_bb = 1u64 << self.ep_square;
+                let ep = self.ep_square;
+                let left = ((pawns & !FILE_A) << 7) & ep_bb;
+                let right = ((pawns & !FILE_H) << 9) & ep_bb;
+                if left != 0 {
+                    list.push(Move::new(ep - 7, ep, WP, BP, 0, FLAG_CAPTURE | FLAG_EP));
+                }
+                if right != 0 {
+                    list.push(Move::new(ep - 9, ep, WP, BP, 0, FLAG_CAPTURE | FLAG_EP));
+                }
+            }
+        } else {
+            let left = ((pawns & !FILE_A) >> 9) & enemy;
+            let right = ((pawns & !FILE_H) >> 7) & enemy;
+            self.push_black_caps_left(left, list);
+            self.push_black_caps_right(right, list);
+
+            // ep
+            if self.ep_square != 64 {
+                let ep_bb = 1u64 << self.ep_square;
+                let ep = self.ep_square;
+                let left = ((pawns & !FILE_A) >> 9) & ep_bb;
+                let right = ((pawns & !FILE_H) >> 7) & ep_bb;
+                if left != 0 {
+                    list.push(Move::new(ep + 9, ep, BP, WP, 0, FLAG_CAPTURE | FLAG_EP));
+                }
+                if right != 0 {
+                    list.push(Move::new(ep + 7, ep, BP, WP, 0, FLAG_CAPTURE | FLAG_EP));
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]

@@ -9,6 +9,7 @@ mod engine;
 pub mod error;
 mod fen;
 pub mod logging;
+mod move_ordering;
 mod moves;
 mod perft;
 mod time;

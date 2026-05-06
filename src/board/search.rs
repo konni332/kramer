@@ -8,6 +8,7 @@ use vampirc_uci::{UciInfoAttribute, UciMessage};
 
 use crate::{
     board::Board,
+    move_ordering::next_best,
     moves::{Move, MoveList},
 };
 
@@ -93,7 +94,9 @@ impl Board {
         let mut alpha = -INF;
         let beta = INF;
 
-        for &mv in list.as_slice() {
+        let moves = list.as_mut_slice();
+        for i in 0..moves.len() {
+            let mv = next_best(moves, i).unwrap();
             if stop.load(Ordering::Relaxed) {
                 break;
             }
@@ -138,7 +141,9 @@ impl Board {
 
         let mut best = -INF;
 
-        for &mv in list.as_slice() {
+        let moves = list.as_mut_slice();
+        for i in 0..moves.len() {
+            let mv = next_best(moves, i).unwrap();
             let undo = self.make_move(mv);
             let score = -self.negamax(depth - 1, -beta, -alpha, stop);
             self.unmake_move(mv, undo);
@@ -175,7 +180,10 @@ impl Board {
         let mut list = MoveList::new();
         self.generate_capture_moves(&mut list);
 
-        for &mv in list.as_slice() {
+        let moves = list.as_mut_slice();
+
+        for i in 0..moves.len() {
+            let mv = next_best(moves, i).unwrap();
             if !mv.is_capture() {
                 continue;
             }

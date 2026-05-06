@@ -119,7 +119,7 @@ impl Board {
         }
 
         if depth == 0 {
-            return self.evaluate();
+            return self.quiescence(alpha, beta, stop);
         }
 
         let mut list = MoveList::new();
@@ -155,5 +155,47 @@ impl Board {
         }
 
         best
+    }
+    pub fn quiescence(&mut self, mut alpha: i32, beta: i32, stop: &Arc<AtomicBool>) -> i32 {
+        if stop.load(Ordering::Relaxed) {
+            return 0;
+        }
+
+        let stand_pat = self.evaluate();
+
+        if stand_pat >= beta {
+            return beta; // beta cutoff
+        }
+
+        if stand_pat > alpha {
+            alpha = stand_pat;
+        }
+
+        // generate only captures
+        let mut list = MoveList::new();
+        self.generate_legal_moves(&mut list);
+
+        for &mv in list.as_slice() {
+            if !mv.is_capture() {
+                continue;
+            }
+
+            if stop.load(Ordering::Relaxed) {
+                return 0;
+            }
+
+            let undo = self.make_move(mv);
+            let score = self.quiescence(-beta, -alpha, stop);
+            self.unmake_move(mv, undo);
+
+            if score >= beta {
+                return beta;
+            }
+            if score > alpha {
+                alpha = score;
+            }
+        }
+
+        alpha
     }
 }

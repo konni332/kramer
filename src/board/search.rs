@@ -10,6 +10,7 @@ use crate::{
     board::Board,
     move_ordering::next_best,
     moves::{Move, MoveList},
+    tt::TranspositionTable,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,6 +29,7 @@ impl Board {
         max_depth: u8,
         stop: &Arc<AtomicBool>,
         tx: Sender<UciMessage>,
+        tt: &mut TranspositionTable,
     ) -> SearchResult {
         let mut result = SearchResult {
             best_move: None,
@@ -40,7 +42,7 @@ impl Board {
                 break;
             }
 
-            let (mv, score) = self.search_root(depth, stop);
+            let (mv, score) = self.search_root(depth, stop, tt);
 
             // stopped mid search
             // reslut is unreliable
@@ -81,7 +83,12 @@ impl Board {
         result
     }
 
-    pub fn search_root(&mut self, depth: u8, stop: &Arc<AtomicBool>) -> (Option<Move>, i32) {
+    pub fn search_root(
+        &mut self,
+        depth: u8,
+        stop: &Arc<AtomicBool>,
+        tt: &mut TranspositionTable,
+    ) -> (Option<Move>, i32) {
         let mut list = MoveList::new();
         self.generate_legal_moves(&mut list);
 
@@ -102,7 +109,7 @@ impl Board {
             }
 
             let undo = self.make_move(mv);
-            let score = -self.negamax(depth - 1, -beta, -alpha, stop);
+            let score = -self.negamax(depth - 1, -beta, -alpha, stop, tt);
             self.unmake_move(mv, undo);
 
             if score > best_score {
@@ -116,13 +123,25 @@ impl Board {
 
         (best_move, best_score)
     }
-    pub fn negamax(&mut self, depth: u8, mut alpha: i32, beta: i32, stop: &Arc<AtomicBool>) -> i32 {
+    pub fn negamax(
+        &mut self,
+        depth: u8,
+        mut alpha: i32,
+        beta: i32,
+        stop: &Arc<AtomicBool>,
+        tt: &mut TranspositionTable,
+    ) -> i32 {
         if stop.load(Ordering::Relaxed) {
             return 0;
         }
 
         if depth == 0 {
             return self.quiescence(alpha, beta, stop);
+        }
+
+        let hash = self.zobrist;
+        if let Some((score, _)) = tt.probe(hash, depth, alpha, beta) {
+            return score;
         }
 
         let mut list = MoveList::new();
@@ -139,26 +158,36 @@ impl Board {
             }
         }
 
+        if let Some(tt_move) = tt.probe_move(hash) {
+            list.move_to_front(tt_move);
+        }
+
         let mut best = -INF;
+        let mut best_move = None;
+        let mut flag = crate::tt::TTFlag::UpperBound;
 
         let moves = list.as_mut_slice();
         for i in 0..moves.len() {
             let mv = next_best(moves, i).unwrap();
             let undo = self.make_move(mv);
-            let score = -self.negamax(depth - 1, -beta, -alpha, stop);
+            let score = -self.negamax(depth - 1, -beta, -alpha, stop, tt);
             self.unmake_move(mv, undo);
 
             if score > best {
                 best = score;
+                best_move = Some(mv);
             }
             if score > alpha {
                 alpha = score;
+                flag = crate::tt::TTFlag::Exact;
             }
             if alpha >= beta {
-                break; // beta cutoff
+                tt.store(hash, depth, score, crate::tt::TTFlag::LowerBound, Some(mv));
+                return best;
             }
         }
 
+        tt.store(hash, depth, best, flag, best_move);
         best
     }
     pub fn quiescence(&mut self, mut alpha: i32, beta: i32, stop: &Arc<AtomicBool>) -> i32 {
@@ -193,7 +222,7 @@ impl Board {
             }
 
             let undo = self.make_move(mv);
-            let score = self.quiescence(-beta, -alpha, stop);
+            let score = -self.quiescence(-beta, -alpha, stop);
             self.unmake_move(mv, undo);
 
             if score >= beta {

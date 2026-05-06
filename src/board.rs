@@ -191,11 +191,6 @@ impl Board {
         self.occ[BOTH] ^= delta;
     }
 
-    #[inline(always)]
-    pub fn piece_at(&self, sq: Square) -> u8 {
-        self.mailbox[sq as usize]
-    }
-
     fn push_quiets(&self, from: u8, mut bb: Bitboard, piece: u8, list: &mut MoveList) {
         while bb != 0 {
             let to = bb.trailing_zeros() as u8;
@@ -212,8 +207,6 @@ impl Board {
             list.push(Move::new(from, to, piece, captured, 0, FLAG_CAPTURE));
         }
     }
-
-    fn recompute_incrementals(&mut self) {}
 
     pub fn make_move(&mut self, mv: Move) -> Undo {
         let undo = Undo {

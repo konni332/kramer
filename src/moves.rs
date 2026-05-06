@@ -111,6 +111,16 @@ impl MoveList {
     pub fn as_mut_slice(&mut self) -> &mut [Move] {
         &mut self.moves[..self.len]
     }
+
+    pub fn move_to_front(&mut self, mv: Move) {
+        let moves = &mut self.moves[..self.len];
+        if let Some(idx) = moves
+            .iter()
+            .position(|&m| m.from() == mv.from() && m.to() == mv.to())
+        {
+            moves[0..=idx].rotate_right(1);
+        }
+    }
 }
 
 impl std::fmt::Display for Move {

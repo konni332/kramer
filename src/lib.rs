@@ -13,6 +13,7 @@ mod move_ordering;
 mod moves;
 mod perft;
 mod time;
+mod tt;
 mod uci;
 mod zobrist;
 

@@ -1,6 +1,6 @@
 use std::{
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, Ordering},
     },
     thread,
@@ -14,6 +14,7 @@ use crate::{
     board::{Board, WHITE},
     moves::MoveList,
     time::allocate_time,
+    tt::TranspositionTable,
 };
 
 #[derive(Debug)]
@@ -26,6 +27,8 @@ pub struct Engine {
     stop_flag: Arc<AtomicBool>,
     search_thread: Option<thread::JoinHandle<()>>,
     out_tx: Sender<UciMessage>,
+
+    tt: Arc<Mutex<TranspositionTable>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -43,6 +46,7 @@ impl Engine {
             stop_flag: Arc::new(AtomicBool::new(false)),
             search_thread: None,
             out_tx,
+            tt: Arc::new(Mutex::new(TranspositionTable::new(16))), // default 16MB
         }
     }
     fn stop_search(&mut self) {
@@ -83,6 +87,7 @@ impl Engine {
             }
             UciMessage::UciNewGame => {
                 tracing::info!("uci new game");
+                self.tt.lock().unwrap().clear();
             }
             UciMessage::Position {
                 startpos,
@@ -151,8 +156,10 @@ impl Engine {
                     });
                 }
 
+                let tt = Arc::clone(&self.tt);
                 let handle = thread::spawn(move || {
-                    let result = board.iterative_deepening(max_depth, &stop, tx.clone());
+                    let mut tt = tt.lock().unwrap();
+                    let result = board.iterative_deepening(max_depth, &stop, tx.clone(), &mut tt);
 
                     let msg = match result.best_move {
                         Some(mv) => UciMessage::best_move(mv.into()),
@@ -206,6 +213,7 @@ impl Engine {
                 Ok(val) => {
                     if (HASH_MIN..=HASH_MAX).contains(&val) {
                         self.options.hash_option = val;
+                        *self.tt.lock().unwrap() = TranspositionTable::new(val as usize);
                         tracing::info!(?val, "option set: Hash");
                     } else {
                         tracing::error!(?val, "value out of bounds for option: Hash");
@@ -217,6 +225,7 @@ impl Engine {
             }
         } else {
             self.options.hash_option = 16;
+            *self.tt.lock().unwrap() = TranspositionTable::new(16);
             tracing::info!("option set: Hash default");
         }
     }

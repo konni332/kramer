@@ -10,7 +10,7 @@ use crate::{
     board::Board,
     move_ordering::next_best,
     moves::{Move, MoveList},
-    tt::TranspositionTable,
+    tt::{TTFlag, TranspositionTable},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -30,7 +30,7 @@ impl Board {
         stop: &Arc<AtomicBool>,
         tx: Sender<UciMessage>,
         tt: &mut TranspositionTable,
-    ) -> SearchResult {
+    ) -> Option<SearchResult> {
         let mut result = SearchResult {
             best_move: None,
             score: 0,
@@ -42,13 +42,16 @@ impl Board {
                 break;
             }
 
-            let (mv, score) = self.search_root(depth, stop, tt);
+            let search = self.search_root(depth, stop, tt);
 
-            // stopped mid search
-            // reslut is unreliable
             if stop.load(Ordering::Relaxed) {
                 break;
             }
+
+            let (mv, score) = match search {
+                Some(v) => v,
+                None => break,
+            };
 
             result.best_move = mv;
             result.score = score;
@@ -61,7 +64,7 @@ impl Board {
                 "depth complete"
             );
 
-            let info = UciMessage::Info(vec![
+            let _ = tx.send(UciMessage::Info(vec![
                 UciInfoAttribute::Depth(depth),
                 UciInfoAttribute::Score {
                     cp: Some(score),
@@ -69,18 +72,18 @@ impl Board {
                     lower_bound: None,
                     upper_bound: None,
                 },
-            ]);
-            if let Err(err) = tx.send(info) {
-                tracing::error!(?err, "channel error sending search info");
-            }
+            ]));
 
-            // stop early if mate found
             if score.abs() >= MATE_SCORE - 100 {
                 break;
             }
         }
 
-        result
+        if result.best_move.is_some() {
+            Some(result)
+        } else {
+            None
+        }
     }
 
     pub fn search_root(
@@ -88,41 +91,50 @@ impl Board {
         depth: u8,
         stop: &Arc<AtomicBool>,
         tt: &mut TranspositionTable,
-    ) -> (Option<Move>, i32) {
+    ) -> Option<(Option<Move>, i32)> {
         let mut list = MoveList::new();
         self.generate_legal_moves(&mut list);
 
         if list.len() == 0 {
-            return (None, 0);
+            return None;
         }
 
-        let mut best_move = None;
-        let mut best_score = -INF;
+        let hash = self.zobrist;
         let mut alpha = -INF;
         let beta = INF;
+        let mut best_move = None;
+        let mut best_score = -INF;
+
+        if let Some(tt_move) = tt.probe_move(hash) {
+            list.move_to_front(tt_move);
+        }
 
         let moves = list.as_mut_slice();
         for i in 0..moves.len() {
-            let mv = next_best(moves, i).unwrap();
             if stop.load(Ordering::Relaxed) {
-                break;
+                return None;
             }
 
+            let mv = next_best(moves, i).unwrap();
             let undo = self.make_move(mv);
-            let score = -self.negamax(depth - 1, -beta, -alpha, stop, tt);
+            let score = -self.negamax(depth - 1, -beta, -alpha, stop, tt)?;
             self.unmake_move(mv, undo);
 
             if score > best_score {
                 best_score = score;
                 best_move = Some(mv);
             }
+
             if score > alpha {
                 alpha = score;
             }
         }
 
-        (best_move, best_score)
+        tt.store(hash, depth, best_score, TTFlag::Exact, best_move);
+
+        Some((best_move, best_score))
     }
+
     pub fn negamax(
         &mut self,
         depth: u8,
@@ -130,32 +142,31 @@ impl Board {
         beta: i32,
         stop: &Arc<AtomicBool>,
         tt: &mut TranspositionTable,
-    ) -> i32 {
+    ) -> Option<i32> {
         if stop.load(Ordering::Relaxed) {
-            return 0;
+            return None;
         }
 
         if depth == 0 {
-            return self.quiescence(alpha, beta, stop);
+            return self.quiescence(alpha, beta, stop, tt);
         }
 
         let hash = self.zobrist;
+        let alpha_orig = alpha;
+
         if let Some((score, _)) = tt.probe(hash, depth, alpha, beta) {
-            return score;
+            return Some(score);
         }
 
         let mut list = MoveList::new();
         self.generate_legal_moves(&mut list);
 
         if list.len() == 0 {
-            if self.king_in_check(self.side_to_move as usize) {
-                // checkmate
-                // return mate score, subtract depth to prefer faster mates
-                return -(MATE_SCORE - depth as i32);
+            return if self.king_in_check(self.side_to_move as usize) {
+                Some(-(MATE_SCORE - depth as i32))
             } else {
-                // stalemate
-                return 0;
-            }
+                Some(0)
+            };
         }
 
         if let Some(tt_move) = tt.probe_move(hash) {
@@ -164,84 +175,93 @@ impl Board {
 
         let mut best = -INF;
         let mut best_move = None;
-        let mut flag = crate::tt::TTFlag::UpperBound;
 
         let moves = list.as_mut_slice();
         for i in 0..moves.len() {
+            if stop.load(Ordering::Relaxed) {
+                return None;
+            }
+
             let mv = next_best(moves, i).unwrap();
             let undo = self.make_move(mv);
-            let score = -self.negamax(depth - 1, -beta, -alpha, stop, tt);
+            let score = -self.negamax(depth - 1, -beta, -alpha, stop, tt)?;
             self.unmake_move(mv, undo);
 
             if score > best {
                 best = score;
                 best_move = Some(mv);
             }
+
             if score > alpha {
                 alpha = score;
-                flag = crate::tt::TTFlag::Exact;
             }
+
             if alpha >= beta {
-                tt.store(hash, depth, score, crate::tt::TTFlag::LowerBound, Some(mv));
-                return best;
+                tt.store(hash, depth, best, TTFlag::LowerBound, Some(mv));
+                return Some(best);
             }
         }
 
+        let flag = if best <= alpha_orig {
+            TTFlag::UpperBound
+        } else {
+            TTFlag::Exact
+        };
+
         tt.store(hash, depth, best, flag, best_move);
-        best
+
+        Some(best)
     }
-    pub fn quiescence(&mut self, mut alpha: i32, beta: i32, stop: &Arc<AtomicBool>) -> i32 {
+
+    pub fn quiescence(
+        &mut self,
+        mut alpha: i32,
+        beta: i32,
+        stop: &Arc<AtomicBool>,
+        tt: &mut TranspositionTable,
+    ) -> Option<i32> {
         if stop.load(Ordering::Relaxed) {
-            return 0;
+            return None;
         }
 
         let stand_pat = self.evaluate();
 
         if stand_pat >= beta {
-            return beta; // beta cutoff
+            return Some(beta);
         }
 
         if stand_pat > alpha {
             alpha = stand_pat;
         }
 
-        // generate only captures
         let mut list = MoveList::new();
-        self.generate_capture_moves(&mut list);
+        self.generate_legal_captures(&mut list);
+
+        if let Some(tt_move) = tt.probe_move(self.zobrist) {
+            list.move_to_front(tt_move);
+        }
 
         let moves = list.as_mut_slice();
-
         for i in 0..moves.len() {
-            let mv = next_best(moves, i).unwrap();
-            if !mv.is_capture() {
-                continue;
-            }
-
             if stop.load(Ordering::Relaxed) {
-                return 0;
+                return None;
             }
 
+            let mv = next_best(moves, i).unwrap();
             let undo = self.make_move(mv);
-            let score = -self.quiescence(-beta, -alpha, stop);
+            let score = -self.quiescence(-beta, -alpha, stop, tt)?;
             self.unmake_move(mv, undo);
 
             if score >= beta {
-                return beta;
+                return Some(beta);
             }
+
             if score > alpha {
                 alpha = score;
             }
         }
 
-        alpha
-    }
-
-    pub fn generate_capture_moves(&self, list: &mut MoveList) {
-        self.generate_pawn_captures(list);
-        self.generate_knight_captures(list);
-        self.generate_bishop_captures(list);
-        self.generate_rook_captures(list);
-        self.generate_queen_captures(list);
-        self.generate_king_captures(list);
+        Some(alpha)
     }
 }
+

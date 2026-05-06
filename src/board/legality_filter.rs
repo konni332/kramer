@@ -84,7 +84,7 @@ impl Board {
         self.square_attacked(king_sq, opponent)
     }
 
-    pub fn generate_legal_moves(&self, list: &mut MoveList) {
+    pub fn generate_legal_moves(&mut self, list: &mut MoveList) {
         let mut pseudo = MoveList::new();
         self.generate_all_moves(&mut pseudo);
 
@@ -108,13 +108,37 @@ impl Board {
                 }
             }
 
-            let mut board = *self;
-            let _undo = board.make_move(mv);
-            if !board.king_in_check(side) {
+            let undo = self.make_move(mv);
+            if !self.king_in_check(side) {
                 list.push(mv);
             }
+            self.unmake_move(mv, undo);
+        }
+    }
+
+    pub fn generate_legal_captures(&mut self, list: &mut MoveList) {
+        let mut pseudo = MoveList::new();
+        self.generate_capture_moves(&mut pseudo);
+
+        let side = self.side_to_move as usize;
+
+        for &mv in pseudo.as_slice() {
+            let undo = self.make_move(mv);
+            if !self.king_in_check(side) {
+                list.push(mv);
+            }
+            self.unmake_move(mv, undo);
             // board is copied, so no unmake needed
         }
+    }
+
+    pub fn generate_capture_moves(&self, list: &mut MoveList) {
+        self.generate_pawn_captures(list);
+        self.generate_knight_captures(list);
+        self.generate_bishop_captures(list);
+        self.generate_rook_captures(list);
+        self.generate_queen_captures(list);
+        self.generate_king_captures(list);
     }
 }
 
@@ -218,7 +242,7 @@ mod tests {
 
     #[test]
     fn legal_moves_startpos_count() {
-        let board = Board::startpos();
+        let mut board = Board::startpos();
         let mut list = MoveList::new();
         board.generate_legal_moves(&mut list);
         assert_eq!(list.len(), 20);
@@ -227,7 +251,7 @@ mod tests {
     #[test]
     fn legal_moves_in_check_limited() {
         // king in check from rook on e8, only legal moves are to escape or block
-        let board = Board::from_fen("4r3/8/8/8/8/8/8/4K3 w - - 0 1").unwrap();
+        let mut board = Board::from_fen("4r3/8/8/8/8/8/8/4K3 w - - 0 1").unwrap();
         let mut list = MoveList::new();
         board.generate_legal_moves(&mut list);
         // king must move off the e file — d1, d2, f1, f2 are the only options
@@ -247,7 +271,7 @@ mod tests {
     #[test]
     fn legal_moves_pinned_piece_cannot_move() {
         // white rook on e4 is pinned by black rook on e8, white king on e1
-        let board = Board::from_fen("4r3/8/8/8/4R3/8/8/4K3 w - - 0 1").unwrap();
+        let mut board = Board::from_fen("4r3/8/8/8/4R3/8/8/4K3 w - - 0 1").unwrap();
         let mut list = MoveList::new();
         board.generate_legal_moves(&mut list);
         // pinned rook can only move along the e file
@@ -262,7 +286,7 @@ mod tests {
     #[test]
     fn legal_moves_checkmate_returns_empty() {
         // fool's mate
-        let board =
+        let mut board =
             Board::from_fen("rnb1kbnr/pppp1ppp/4p3/8/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3")
                 .unwrap();
         let mut list = MoveList::new();
@@ -273,7 +297,7 @@ mod tests {
     #[test]
     fn legal_moves_stalemate_returns_empty() {
         // classic stalemate
-        let board = Board::from_fen("k7/8/1Q6/8/8/8/8/7K b - - 0 1").unwrap();
+        let mut board = Board::from_fen("k7/8/1Q6/8/8/8/8/7K b - - 0 1").unwrap();
         let mut list = MoveList::new();
         board.generate_legal_moves(&mut list);
         assert_eq!(list.len(), 0);
@@ -282,7 +306,7 @@ mod tests {
     #[test]
     fn castling_not_legal_through_check() {
         // white king cannot castle kingside — f1 is attacked by black rook on f8
-        let board = Board::from_fen("5r2/8/8/8/8/8/8/4K2R w K - 0 1").unwrap();
+        let mut board = Board::from_fen("5r2/8/8/8/8/8/8/4K2R w K - 0 1").unwrap();
         let mut list = MoveList::new();
         board.generate_legal_moves(&mut list);
         let has_castle = list.as_slice().iter().any(|mv| mv.is_castle());

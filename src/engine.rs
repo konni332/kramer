@@ -160,8 +160,7 @@ impl Engine {
                 let handle = thread::spawn(move || {
                     let mut tt = tt.lock().unwrap();
                     let result = board.iterative_deepening(max_depth, &stop, tx.clone(), &mut tt);
-
-                    let msg = match result.best_move {
+                    let msg = match result.as_ref().and_then(|r| r.best_move) {
                         Some(mv) => UciMessage::best_move(mv.into()),
                         None => UciMessage::BestMove {
                             best_move: invalid_uci_move(),

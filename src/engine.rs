@@ -4,12 +4,17 @@ use std::{
         atomic::{AtomicBool, Ordering},
     },
     thread,
+    time::Duration,
 };
 
 use crossbeam::channel::Sender;
-use vampirc_uci::{MessageList, UciMessage, UciMove, UciOptionConfig, UciSquare};
+use vampirc_uci::{MessageList, UciMessage, UciMove, UciOptionConfig, UciSquare, UciTimeControl};
 
-use crate::{board::Board, moves::MoveList};
+use crate::{
+    board::{Board, WHITE},
+    moves::MoveList,
+    time::allocate_time,
+};
 
 #[derive(Debug)]
 pub struct Engine {
@@ -117,23 +122,40 @@ impl Engine {
                     }
                 }
             }
-            UciMessage::Go { search_control, .. } => {
+            UciMessage::Go {
+                search_control,
+                time_control,
+            } => {
                 self.stop_search();
-
-                let depth = search_control.as_ref().and_then(|sc| sc.depth).unwrap_or(6);
-
                 self.stop_flag.store(false, Ordering::Relaxed);
+
                 let stop = Arc::clone(&self.stop_flag);
                 let tx = self.out_tx.clone();
-
-                // clone board for search thread (Board is Copy)
                 let mut board = self.board;
 
+                let max_depth = search_control
+                    .as_ref()
+                    .and_then(|sc| sc.depth)
+                    .unwrap_or(99);
+
+                let allocated_time = allocate_time_from_time_control(
+                    self.board.side_to_move == WHITE as u8,
+                    time_control,
+                );
+
+                if let Some(time) = allocated_time {
+                    let stop_timer = Arc::clone(&self.stop_flag);
+                    thread::spawn(move || {
+                        thread::sleep(time);
+                        stop_timer.store(true, Ordering::Relaxed);
+                    });
+                }
+
                 let handle = thread::spawn(move || {
-                    let mv = board.best_move(depth, &stop);
-                    let msg = match mv {
+                    let result = board.iterative_deepening(max_depth, &stop, tx.clone());
+
+                    let msg = match result.best_move {
                         Some(mv) => UciMessage::best_move(mv.into()),
-                        // invalid bestmove output (bestmove 0000)
                         None => UciMessage::BestMove {
                             best_move: invalid_uci_move(),
                             ponder: None,
@@ -271,5 +293,45 @@ fn invalid_uci_move() -> UciMove {
         from: UciSquare::default(),
         to: UciSquare::default(),
         promotion: None,
+    }
+}
+fn allocate_time_from_time_control(
+    white: bool,
+    time_control: Option<UciTimeControl>,
+) -> Option<Duration> {
+    let tc = time_control?;
+
+    match tc {
+        UciTimeControl::TimeLeft {
+            white_time,
+            black_time,
+            white_increment,
+            black_increment,
+            moves_to_go,
+        } => {
+            let time_ms = if white {
+                white_time.map(|d| d.num_milliseconds() as u64)
+            } else {
+                black_time.map(|d| d.num_milliseconds() as u64)
+            }?;
+
+            let inc_ms = if white {
+                white_increment.map(|d| d.num_milliseconds() as u64)
+            } else {
+                black_increment.map(|d| d.num_milliseconds() as u64)
+            }
+            .unwrap_or(0);
+
+            Some(allocate_time(
+                time_ms,
+                inc_ms,
+                moves_to_go.map(|m| m as u32),
+            ))
+        }
+        UciTimeControl::MoveTime(duration) => Some(Duration::from_millis(
+            duration.num_milliseconds().saturating_sub(50) as u64,
+        )),
+        UciTimeControl::Infinite => None,
+        UciTimeControl::Ponder => None,
     }
 }

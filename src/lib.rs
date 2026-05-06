@@ -11,6 +11,7 @@ mod fen;
 pub mod logging;
 mod moves;
 mod perft;
+mod time;
 mod uci;
 mod zobrist;
 

@@ -13,9 +13,12 @@ mod move_ordering;
 mod moves;
 mod perft;
 mod time;
-mod tt;
+pub mod tt;
 mod uci;
 mod zobrist;
+
+pub use board::Board;
+pub use moves::MoveList;
 
 pub fn run_engine() {
     tracing::info!("kramer boot");

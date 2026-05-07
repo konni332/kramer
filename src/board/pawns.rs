@@ -34,7 +34,6 @@ impl Board {
         list: &mut MoveList,
     ) {
         let single = (pawns << 8) & empty;
-
         let double = ((((pawns & RANK_2) << 8) & empty) << 8) & empty;
 
         let promo_push = single & PROMO_RANK_WHITE;

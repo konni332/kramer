@@ -1,7 +1,7 @@
 use std::{
     sync::{
         Arc, Mutex,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     thread,
     time::Duration,
@@ -29,6 +29,7 @@ pub struct Engine {
     out_tx: Sender<UciMessage>,
 
     tt: Arc<Mutex<TranspositionTable>>,
+    search_generation: Arc<AtomicU64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,6 +48,7 @@ impl Engine {
             search_thread: None,
             out_tx,
             tt: Arc::new(Mutex::new(TranspositionTable::new(16))), // default 16MB
+            search_generation: Arc::new(AtomicU64::new(0)),
         }
     }
     fn stop_search(&mut self) {
@@ -148,11 +150,17 @@ impl Engine {
                     time_control,
                 );
 
+                let gena = self.search_generation.fetch_add(1, Ordering::Relaxed);
+                let expected_gen = gena + 1; // the new generation
+
                 if let Some(time) = allocated_time {
                     let stop_timer = Arc::clone(&self.stop_flag);
+                    let generation = Arc::clone(&self.search_generation);
                     thread::spawn(move || {
                         thread::sleep(time);
-                        stop_timer.store(true, Ordering::Relaxed);
+                        if generation.load(Ordering::Relaxed) == expected_gen {
+                            stop_timer.store(true, Ordering::Relaxed);
+                        }
                     });
                 }
 

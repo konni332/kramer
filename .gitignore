@@ -5,3 +5,4 @@ ROADMAP.md
 *.svg
 perf.data
 profile.json.gz
+*.pgn

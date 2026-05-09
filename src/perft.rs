@@ -43,7 +43,6 @@ impl Board {
 
 #[cfg(test)]
 mod tests {
-    use crate::board::{WB, WQ, WR};
 
     use super::*;
 

@@ -105,7 +105,12 @@ impl Board {
         let mut best_move = None;
         let mut best_score = -INF;
 
-        if let Some(tt_move) = tt.probe_move(hash) {
+        if let Some(tt_move) = tt.probe_move(hash)
+            && list
+                .as_slice()
+                .iter()
+                .any(|m| m.from() == tt_move.from() && m.to() == tt_move.to())
+        {
             list.move_to_front(tt_move);
         }
 
@@ -169,7 +174,12 @@ impl Board {
             };
         }
 
-        if let Some(tt_move) = tt.probe_move(hash) {
+        if let Some(tt_move) = tt.probe_move(hash)
+            && list
+                .as_slice()
+                .iter()
+                .any(|m| m.from() == tt_move.from() && m.to() == tt_move.to())
+        {
             list.move_to_front(tt_move);
         }
 
@@ -264,4 +274,3 @@ impl Board {
         Some(alpha)
     }
 }
-

@@ -170,10 +170,16 @@ impl Engine {
                     let result = board.iterative_deepening(max_depth, &stop, tx.clone(), &mut tt);
                     let msg = match result.as_ref().and_then(|r| r.best_move) {
                         Some(mv) => UciMessage::best_move(mv.into()),
-                        None => UciMessage::BestMove {
-                            best_move: invalid_uci_move(),
-                            ponder: None,
-                        },
+                        None => {
+                            // search failed (time too short, stopped immediately)
+                            // fall back to first legal move rather than sending garbage
+                            let mut list = MoveList::new();
+                            board.generate_legal_moves(&mut list);
+                            match list.as_slice().first() {
+                                Some(&mv) => UciMessage::best_move(mv.into()),
+                                None => return, // genuinely no legal moves, game is over, send nothing
+                            }
+                        }
                     };
 
                     if let Err(err) = tx.send(msg) {

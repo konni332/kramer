@@ -1,9 +1,9 @@
 use crate::{
     board::{
-        BLACK, BN, Bitboard, Board, WHITE, WN,
+        BLACK, BN, Board, WHITE, WN,
         generation::{NOT_A, NOT_AB, NOT_GH, NOT_H},
     },
-    moves::{FLAG_CAPTURE, Move, MoveList},
+    moves::MoveList,
 };
 
 impl Board {

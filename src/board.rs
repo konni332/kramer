@@ -346,6 +346,7 @@ impl Board {
     pub fn compute_zobrist(&self) -> u64 {
         let mut hash = 0u64;
 
+        #[allow(clippy::needless_range_loop)]
         for sq in 0..64usize {
             let piece = self.mailbox[sq];
             if piece != EMPTY {

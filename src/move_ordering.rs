@@ -37,6 +37,7 @@ pub fn next_best(moves: &mut [Move], start: usize) -> Option<Move> {
     let mut best_idx = start;
     let mut best_score = score_move(moves[start]);
 
+    #[allow(clippy::needless_range_loop)]
     for i in (start + 1)..moves.len() {
         let score = score_move(moves[i]);
         if score > best_score {

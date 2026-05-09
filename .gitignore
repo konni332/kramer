@@ -6,3 +6,7 @@ ROADMAP.md
 perf.data
 profile.json.gz
 *.pgn
+
+bench_current.json
+regression_report.json
+sprt_result.pgn

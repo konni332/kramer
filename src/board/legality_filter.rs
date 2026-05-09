@@ -255,7 +255,7 @@ mod tests {
         let mut list = MoveList::new();
         board.generate_legal_moves(&mut list);
         // king must move off the e file — d1, d2, f1, f2 are the only options
-        assert!(list.len() > 0);
+        assert!(!list.is_empty());
         for mv in list.as_slice() {
             // every legal move must result in king not being in check
             let mut board2 = board;

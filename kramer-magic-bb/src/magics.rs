@@ -145,7 +145,7 @@ mod tests {
     #[test]
     fn verify_rook_magics() {
         let rook_magics: [u64; 64] = ROOK_MAGICS;
-
+        #[allow(clippy::needless_range_loop)]
         for sq in 0..64usize {
             let mask = rook_mask(sq as u8);
             let bits = mask.count_ones() as u8;
@@ -183,6 +183,7 @@ mod tests {
     fn verify_bishop_magics() {
         let bishop_magics: [u64; 64] = BISHOP_MAGICS;
 
+        #[allow(clippy::needless_range_loop)]
         for sq in 0..64usize {
             let mask = bishop_mask(sq as u8);
             let bits = mask.count_ones() as u8;

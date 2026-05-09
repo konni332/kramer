@@ -1,8 +1,8 @@
 use crate::{
-    bishop_attacks::{BISHOP_OFFSETS, BISHOP_SHIFTS, BISHOP_TABLE},
+    bishop_attacks::{BISHOP_OFFSETS, BISHOP_SHIFTS, BISHOP_TABLE, BISHOP_TABLE_SIZE},
     bishop_mask::BISHOP_MASKS,
     magics::{BISHOP_MAGICS, ROOK_MAGICS},
-    rook_attacks::{ROOK_OFFSETS, ROOK_SHIFTS, ROOK_TABLE},
+    rook_attacks::{ROOK_OFFSETS, ROOK_SHIFTS, ROOK_TABLE, ROOK_TABLE_SIZE},
     rook_mask::ROOK_MASKS,
 };
 
@@ -14,12 +14,12 @@ mod rook_mask;
 
 pub const fn rook_attacks(sq: usize, occ: u64) -> u64 {
     let idx = (occ & ROOK_MASKS[sq]).wrapping_mul(ROOK_MAGICS[sq]) >> ROOK_SHIFTS[sq];
-    ROOK_TABLE[ROOK_OFFSETS[sq] + idx as usize]
+    ROOK_TABLE.0[ROOK_OFFSETS[sq] + idx as usize]
 }
 
 pub const fn bishop_attacks(sq: usize, occ: u64) -> u64 {
     let idx = (occ & BISHOP_MASKS[sq]).wrapping_mul(BISHOP_MAGICS[sq]) >> BISHOP_SHIFTS[sq];
-    BISHOP_TABLE[BISHOP_OFFSETS[sq] + idx as usize]
+    BISHOP_TABLE.0[BISHOP_OFFSETS[sq] + idx as usize]
 }
 
 pub const fn queen_attacks(sq: usize, occ: u64) -> u64 {
@@ -36,3 +36,9 @@ fn rook_table_sanity() {
         assert_eq!(expected, got, "mismatch at sq={} with no blockers", sq);
     }
 }
+
+#[repr(align(64))]
+pub struct AlignedRookTable(pub [u64; ROOK_TABLE_SIZE]);
+
+#[repr(align(64))]
+pub struct AlignedBishopTable(pub [u64; BISHOP_TABLE_SIZE]);

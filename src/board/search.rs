@@ -1,8 +1,9 @@
 use std::sync::{
     Arc,
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicU64, Ordering},
 };
 
+use chrono::TimeDelta;
 use crossbeam::channel::Sender;
 use vampirc_uci::{UciInfoAttribute, UciMessage};
 
@@ -31,6 +32,8 @@ impl Board {
         tx: Sender<UciMessage>,
         tt: &mut TranspositionTable,
     ) -> Option<SearchResult> {
+        let nodes = Arc::new(AtomicU64::new(0));
+        let start = std::time::Instant::now();
         let mut result = SearchResult {
             best_move: None,
             score: 0,
@@ -42,7 +45,7 @@ impl Board {
                 break;
             }
 
-            let search = self.search_root(depth, stop, tt);
+            let search = self.search_root(depth, stop, tt, &nodes);
 
             if stop.load(Ordering::Relaxed) {
                 break;
@@ -64,8 +67,19 @@ impl Board {
                 "depth complete"
             );
 
+            let elapsed = start.elapsed();
+            let node_count = nodes.load(Ordering::Relaxed);
+            let nps = if elapsed.as_secs() > 0 {
+                node_count / elapsed.as_secs()
+            } else {
+                0
+            };
+
             let _ = tx.send(UciMessage::Info(vec![
                 UciInfoAttribute::Depth(depth),
+                UciInfoAttribute::Nodes(node_count),
+                UciInfoAttribute::Time(TimeDelta::milliseconds(elapsed.as_millis() as i64)),
+                UciInfoAttribute::Nps(nps),
                 UciInfoAttribute::Score {
                     cp: Some(score),
                     mate: None,
@@ -91,11 +105,13 @@ impl Board {
         depth: u8,
         stop: &Arc<AtomicBool>,
         tt: &mut TranspositionTable,
+        nodes: &Arc<AtomicU64>,
     ) -> Option<(Option<Move>, i32)> {
+        nodes.fetch_add(1, Ordering::Relaxed);
         let mut list = MoveList::new();
         self.generate_legal_moves(&mut list);
 
-        if list.len() == 0 {
+        if list.is_empty() {
             return None;
         }
 
@@ -122,7 +138,7 @@ impl Board {
 
             let mv = next_best(moves, i).unwrap();
             let undo = self.make_move(mv);
-            let score = -self.negamax(depth - 1, -beta, -alpha, stop, tt)?;
+            let score = -self.negamax(depth - 1, -beta, -alpha, stop, tt, nodes)?;
             self.unmake_move(mv, undo);
 
             if score > best_score {
@@ -147,13 +163,15 @@ impl Board {
         beta: i32,
         stop: &Arc<AtomicBool>,
         tt: &mut TranspositionTable,
+        nodes: &Arc<AtomicU64>,
     ) -> Option<i32> {
+        nodes.fetch_add(1, Ordering::Relaxed);
         if stop.load(Ordering::Relaxed) {
             return None;
         }
 
         if depth == 0 {
-            return self.quiescence(alpha, beta, stop, tt);
+            return self.quiescence(alpha, beta, stop, tt, nodes);
         }
 
         let hash = self.zobrist;
@@ -166,7 +184,7 @@ impl Board {
         let mut list = MoveList::new();
         self.generate_legal_moves(&mut list);
 
-        if list.len() == 0 {
+        if list.is_empty() {
             return if self.king_in_check(self.side_to_move as usize) {
                 Some(-(MATE_SCORE - depth as i32))
             } else {
@@ -194,7 +212,7 @@ impl Board {
 
             let mv = next_best(moves, i).unwrap();
             let undo = self.make_move(mv);
-            let score = -self.negamax(depth - 1, -beta, -alpha, stop, tt)?;
+            let score = -self.negamax(depth - 1, -beta, -alpha, stop, tt, nodes)?;
             self.unmake_move(mv, undo);
 
             if score > best {
@@ -229,7 +247,9 @@ impl Board {
         beta: i32,
         stop: &Arc<AtomicBool>,
         tt: &mut TranspositionTable,
+        nodes: &Arc<AtomicU64>,
     ) -> Option<i32> {
+        nodes.fetch_add(1, Ordering::Relaxed);
         if stop.load(Ordering::Relaxed) {
             return None;
         }
@@ -259,7 +279,7 @@ impl Board {
 
             let mv = next_best(moves, i).unwrap();
             let undo = self.make_move(mv);
-            let score = -self.quiescence(-beta, -alpha, stop, tt)?;
+            let score = -self.quiescence(-beta, -alpha, stop, tt, nodes)?;
             self.unmake_move(mv, undo);
 
             if score >= beta {

@@ -229,6 +229,7 @@ mod tests {
 
     #[test]
     fn rook_mask_table_no_all_zero_squares() {
+        #[allow(clippy::needless_range_loop)]
         for sq in 0..64 {
             assert_ne!(ROOK_MASKS[sq], 0, "ROOK_MASK[{}] should not be zero", sq);
         }

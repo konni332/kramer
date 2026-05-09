@@ -1,4 +1,4 @@
-use crate::{magics::ROOK_MAGICS, rook_mask::ROOK_MASKS};
+use crate::{AlignedRookTable, magics::ROOK_MAGICS, rook_mask::ROOK_MASKS};
 pub const ROOK_SHIFTS: [u8; 64] = {
     let mut shifts = [0u8; 64];
     let mut i = 0;
@@ -25,7 +25,7 @@ pub const ROOK_TABLE_SIZE: usize = {
     ROOK_OFFSETS[63] + (1 << bits)
 };
 
-pub const ROOK_TABLE: [u64; ROOK_TABLE_SIZE] = {
+pub static ROOK_TABLE: AlignedRookTable = {
     let mut table = [0u64; ROOK_TABLE_SIZE];
     let mut sq = 0usize;
 
@@ -50,7 +50,7 @@ pub const ROOK_TABLE: [u64; ROOK_TABLE_SIZE] = {
         sq += 1;
     }
 
-    table
+    AlignedRookTable(table)
 };
 
 pub const fn rook_attacks_on_the_fly(sq: u8, blockers: u64) -> u64 {

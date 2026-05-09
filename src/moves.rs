@@ -1,5 +1,6 @@
 use vampirc_uci::{UciMove, UciPiece, UciSquare};
 
+#[cfg(test)]
 use crate::board::Square;
 
 pub const FLAG_CAPTURE: u32 = 1 << 24;
@@ -85,6 +86,12 @@ impl Move {
     }
 }
 
+impl Default for MoveList {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MoveList {
     pub fn new() -> Self {
         Self {
@@ -102,6 +109,9 @@ impl MoveList {
 
     pub fn len(&self) -> usize {
         self.len
+    }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn as_slice(&self) -> &[Move] {
@@ -204,6 +214,7 @@ fn promo_char(piece: u8) -> char {
     }
 }
 
+#[cfg(test)]
 #[inline(always)]
 pub fn sq(file: char, rank: char) -> Square {
     let f = file as u8 - b'a';

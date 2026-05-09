@@ -1,4 +1,4 @@
-use crate::{bishop_mask::BISHOP_MASKS, magics::BISHOP_MAGICS};
+use crate::{AlignedBishopTable, bishop_mask::BISHOP_MASKS, magics::BISHOP_MAGICS};
 pub const BISHOP_SHIFTS: [u8; 64] = {
     let mut shifts = [0u8; 64];
     let mut i = 0;
@@ -26,7 +26,7 @@ pub const BISHOP_TABLE_SIZE: usize = {
     BISHOP_OFFSETS[63] + (1 << bits)
 };
 
-pub const BISHOP_TABLE: [u64; BISHOP_TABLE_SIZE] = {
+pub static BISHOP_TABLE: AlignedBishopTable = {
     let mut table = [0u64; BISHOP_TABLE_SIZE];
     let mut sq = 0usize;
 
@@ -51,7 +51,7 @@ pub const BISHOP_TABLE: [u64; BISHOP_TABLE_SIZE] = {
         sq += 1;
     }
 
-    table
+    AlignedBishopTable(table)
 };
 
 pub const fn bishop_attacks_on_the_fly(sq: u8, blockers: u64) -> u64 {

@@ -8,7 +8,7 @@ use std::{
 };
 
 use crossbeam::channel::Sender;
-use vampirc_uci::{MessageList, UciMessage, UciMove, UciOptionConfig, UciSquare, UciTimeControl};
+use vampirc_uci::{MessageList, UciMessage, UciOptionConfig, UciTimeControl};
 
 use crate::{
     board::{Board, WHITE},
@@ -310,13 +310,6 @@ impl Default for EngineOptions {
     }
 }
 
-fn invalid_uci_move() -> UciMove {
-    UciMove {
-        from: UciSquare::default(),
-        to: UciSquare::default(),
-        promotion: None,
-    }
-}
 fn allocate_time_from_time_control(
     white: bool,
     time_control: Option<UciTimeControl>,

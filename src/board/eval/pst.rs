@@ -1,5 +1,3 @@
-// eval/pst.rs
-
 // Tables are from white's perspective, a1=index 0, h8=index 63
 // For black we mirror vertically: black_sq = sq ^ 56
 

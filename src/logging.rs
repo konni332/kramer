@@ -35,7 +35,7 @@ pub fn init() -> WorkerGuard {
     let dir = log_dir();
     fs::create_dir_all(&dir).expect("failed to create log directory");
 
-    let file_appender = tracing_appender::rolling::daily(dir, "kramer.log");
+    let file_appender = tracing_appender::rolling::never(dir, "kramer.log");
     let (file_writer, guard) = tracing_appender::non_blocking(file_appender);
 
     let file_layer = fmt::layer()

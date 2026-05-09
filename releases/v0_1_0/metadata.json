@@ -1,0 +1,18 @@
+{
+  "version": "0.1.0",
+  "commit": "3e99fda",
+  "date": "2026-05-09",
+  "elo": 1744,
+  "tc": "10+0.1",
+  "features": [
+    "alpha-beta pruning",
+    "iterative deepening",
+    "quiescence search",
+    "transposition table",
+    "TT move ordering",
+    "time management",
+    "MVV-LVA",
+    "material evaluation",
+    "piece-square tables"
+  ]
+}

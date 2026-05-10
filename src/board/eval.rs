@@ -1,8 +1,14 @@
 use crate::board::{
     BB, BK, BN, BP, BQ, BR, Board, WB, WHITE, WK, WN, WP, WQ, WR,
-    eval::pst::{EG_TABLE, MG_TABLE},
+    eval::{
+        passed_pawns::{
+            BLACK_PASSED_MASK, PASSED_PAWN_EG_BONUS, PASSED_PAWN_MG_BONUS, WHITE_PASSED_MASK,
+        },
+        pst::{EG_TABLE, MG_TABLE},
+    },
 };
 
+mod passed_pawns;
 mod pst;
 
 // phase increments per piece type — pawns and kings don't count
@@ -114,6 +120,32 @@ impl Board {
         if self.pieces[BB as usize - 1].count_ones() >= 2 {
             mg_black += 30;
             eg_black += 50;
+        }
+
+        // passed pawns bonus
+        let bp = self.pieces[BP as usize - 1];
+        let wp = self.pieces[WP as usize - 1];
+
+        let mut white_pawns = wp;
+        while white_pawns != 0 {
+            let sq = white_pawns.trailing_zeros() as usize;
+            white_pawns &= white_pawns - 1;
+            if WHITE_PASSED_MASK[sq] & bp == 0 {
+                let rank = sq / 8;
+                mg_white += PASSED_PAWN_MG_BONUS[rank];
+                eg_white += PASSED_PAWN_EG_BONUS[rank];
+            }
+        }
+
+        let mut black_pawns = bp;
+        while black_pawns != 0 {
+            let sq = black_pawns.trailing_zeros() as usize;
+            black_pawns &= black_pawns - 1;
+            if BLACK_PASSED_MASK[sq] & bp == 0 {
+                let rank = 7 - (sq / 8);
+                mg_black += PASSED_PAWN_MG_BONUS[rank];
+                eg_black += PASSED_PAWN_EG_BONUS[rank];
+            }
         }
 
         let phase = phase.min(MAX_PHASE);

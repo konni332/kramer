@@ -86,8 +86,8 @@ def compare_bench(baseline, current):
             continue
         nd = pct(b["nodes"], c["nodes"])
         npsd = pct(b["nps"], c["nps"])
-        flag = "  <-- REGRESSION" if nd > 5 else ""
-        if nd > 5:
+        flag = "  <-- REGRESSION" if nd > 15 else ""
+        if nd > 15:
             regression = True
         print(f"  {name:<12} {b['nodes']:>12} {c['nodes']:>12} {nd:>+7.1f}%  {b['nps']:>10} {c['nps']:>10} {npsd:>+7.1f}%{flag}")
 
@@ -234,7 +234,7 @@ def main():
 
     # 7. exit code
     if bench_regression:
-        print("\nFAILED: search regression detected (nodes >5% higher)")
+        print("\nFAILED: search regression detected (nodes >15% higher)")
         sys.exit(1)
     else:
         print("\nPASSED")

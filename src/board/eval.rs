@@ -1,73 +1,118 @@
 use crate::board::{
     BB, BK, BN, BP, BQ, BR, Board, WB, WHITE, WK, WN, WP, WQ, WR,
-    eval::pst::{
-        BISHOP_PST, KING_EG_PST, KING_MG_PST, KNIGHT_PST, PAWN_PST, QUEEN_PST, ROOK_PST,
-        black_pst_index, white_pst_index,
-    },
+    eval::pst::{EG_TABLE, MG_TABLE},
 };
 
 mod pst;
 
-const PHASE_KNIGHT: i32 = 1;
-const PHASE_BISHOP: i32 = 1;
-const PHASE_ROOK: i32 = 2;
-const PHASE_QUEEN: i32 = 4;
-const MAX_PHASE: i32 = 4 * PHASE_KNIGHT + 4 * PHASE_BISHOP + 4 * PHASE_ROOK + 2 * PHASE_QUEEN; // 24
+// phase increments per piece type — pawns and kings don't count
+// indices match our piece-1 array: 0=WP,1=WN,2=WB,3=WR,4=WQ,5=WK,6=BP..11=BK
+const PHASE_INC: [i32; 12] = [0, 1, 1, 2, 4, 0, 0, 1, 1, 2, 4, 0];
+const MAX_PHASE: i32 = 24;
 
 impl Board {
     pub fn evaluate(&self) -> i32 {
-        let mut score = 0i32;
-
-        // material
-        score += self.pieces[WP as usize - 1].count_ones() as i32 * 100;
-        score += self.pieces[WN as usize - 1].count_ones() as i32 * 320;
-        score += self.pieces[WB as usize - 1].count_ones() as i32 * 330;
-        score += self.pieces[WR as usize - 1].count_ones() as i32 * 500;
-        score += self.pieces[WQ as usize - 1].count_ones() as i32 * 900;
-
-        score -= self.pieces[BP as usize - 1].count_ones() as i32 * 100;
-        score -= self.pieces[BN as usize - 1].count_ones() as i32 * 320;
-        score -= self.pieces[BB as usize - 1].count_ones() as i32 * 330;
-        score -= self.pieces[BR as usize - 1].count_ones() as i32 * 500;
-        score -= self.pieces[BQ as usize - 1].count_ones() as i32 * 900;
-
-        // PST bonuses
-        score += pst_score(self.pieces[WP as usize - 1], &PAWN_PST, false);
-        score += pst_score(self.pieces[WN as usize - 1], &KNIGHT_PST, false);
-        score += pst_score(self.pieces[WB as usize - 1], &BISHOP_PST, false);
-        score += pst_score(self.pieces[WR as usize - 1], &ROOK_PST, false);
-        score += pst_score(self.pieces[WQ as usize - 1], &QUEEN_PST, false);
-        score += pst_score(self.pieces[WK as usize - 1], &KING_MG_PST, false);
-        score -= pst_score(self.pieces[BP as usize - 1], &PAWN_PST, true);
-        score -= pst_score(self.pieces[BN as usize - 1], &KNIGHT_PST, true);
-        score -= pst_score(self.pieces[BB as usize - 1], &BISHOP_PST, true);
-        score -= pst_score(self.pieces[BR as usize - 1], &ROOK_PST, true);
-        score -= pst_score(self.pieces[BQ as usize - 1], &QUEEN_PST, true);
-        score -= pst_score(self.pieces[BK as usize - 1], &KING_MG_PST, true);
-
-        // phase — based on remaining non-pawn material
+        let mut mg_white = 0i32;
+        let mut eg_white = 0i32;
+        let mut mg_black = 0i32;
+        let mut eg_black = 0i32;
         let mut phase = 0i32;
-        phase += self.pieces[WN as usize - 1].count_ones() as i32 * PHASE_KNIGHT;
-        phase += self.pieces[WB as usize - 1].count_ones() as i32 * PHASE_BISHOP;
-        phase += self.pieces[WR as usize - 1].count_ones() as i32 * PHASE_ROOK;
-        phase += self.pieces[WQ as usize - 1].count_ones() as i32 * PHASE_QUEEN;
-        phase += self.pieces[BN as usize - 1].count_ones() as i32 * PHASE_KNIGHT;
-        phase += self.pieces[BB as usize - 1].count_ones() as i32 * PHASE_BISHOP;
-        phase += self.pieces[BR as usize - 1].count_ones() as i32 * PHASE_ROOK;
-        phase += self.pieces[BQ as usize - 1].count_ones() as i32 * PHASE_QUEEN;
-        phase = phase.min(MAX_PHASE);
 
-        // tapered king — blend between mg and eg by phase
-        let wk_mg = pst_score(self.pieces[WK as usize - 1], &KING_MG_PST, false);
-        let wk_eg = pst_score(self.pieces[WK as usize - 1], &KING_EG_PST, false);
-        let bk_mg = pst_score(self.pieces[BK as usize - 1], &KING_MG_PST, true);
-        let bk_eg = pst_score(self.pieces[BK as usize - 1], &KING_EG_PST, true);
+        // white pieces (array indices 0..5)
+        score_pieces(
+            self.pieces[WP as usize - 1],
+            0,
+            &mut mg_white,
+            &mut eg_white,
+            &mut phase,
+        );
+        score_pieces(
+            self.pieces[WN as usize - 1],
+            1,
+            &mut mg_white,
+            &mut eg_white,
+            &mut phase,
+        );
+        score_pieces(
+            self.pieces[WB as usize - 1],
+            2,
+            &mut mg_white,
+            &mut eg_white,
+            &mut phase,
+        );
+        score_pieces(
+            self.pieces[WR as usize - 1],
+            3,
+            &mut mg_white,
+            &mut eg_white,
+            &mut phase,
+        );
+        score_pieces(
+            self.pieces[WQ as usize - 1],
+            4,
+            &mut mg_white,
+            &mut eg_white,
+            &mut phase,
+        );
+        score_pieces(
+            self.pieces[WK as usize - 1],
+            5,
+            &mut mg_white,
+            &mut eg_white,
+            &mut phase,
+        );
 
-        let wk_score = (wk_mg * phase + wk_eg * (MAX_PHASE - phase)) / MAX_PHASE;
-        let bk_score = (bk_mg * phase + bk_eg * (MAX_PHASE - phase)) / MAX_PHASE;
+        // black pieces (array indices 6..11)
+        score_pieces(
+            self.pieces[BP as usize - 1],
+            6,
+            &mut mg_black,
+            &mut eg_black,
+            &mut phase,
+        );
+        score_pieces(
+            self.pieces[BN as usize - 1],
+            7,
+            &mut mg_black,
+            &mut eg_black,
+            &mut phase,
+        );
+        score_pieces(
+            self.pieces[BB as usize - 1],
+            8,
+            &mut mg_black,
+            &mut eg_black,
+            &mut phase,
+        );
+        score_pieces(
+            self.pieces[BR as usize - 1],
+            9,
+            &mut mg_black,
+            &mut eg_black,
+            &mut phase,
+        );
+        score_pieces(
+            self.pieces[BQ as usize - 1],
+            10,
+            &mut mg_black,
+            &mut eg_black,
+            &mut phase,
+        );
+        score_pieces(
+            self.pieces[BK as usize - 1],
+            11,
+            &mut mg_black,
+            &mut eg_black,
+            &mut phase,
+        );
 
-        score += wk_score;
-        score -= bk_score;
+        let phase = phase.min(MAX_PHASE);
+        let eg_phase = MAX_PHASE - phase;
+
+        let mg_score = mg_white - mg_black;
+        let eg_score = eg_white - eg_black;
+
+        let score = (mg_score * phase + eg_score * eg_phase) / MAX_PHASE;
 
         if self.side_to_move == WHITE as u8 {
             score
@@ -78,17 +123,12 @@ impl Board {
 }
 
 #[inline(always)]
-fn pst_score(mut bb: u64, table: &[i32; 64], flip: bool) -> i32 {
-    let mut score = 0i32;
+fn score_pieces(mut bb: u64, piece_idx: usize, mg: &mut i32, eg: &mut i32, phase: &mut i32) {
     while bb != 0 {
-        let sq = bb.trailing_zeros() as u8;
+        let sq = bb.trailing_zeros() as usize;
         bb &= bb - 1;
-        let idx = if flip {
-            black_pst_index(sq)
-        } else {
-            white_pst_index(sq)
-        };
-        score += table[idx];
+        *mg += MG_TABLE[piece_idx][sq];
+        *eg += EG_TABLE[piece_idx][sq];
+        *phase += PHASE_INC[piece_idx];
     }
-    score
 }

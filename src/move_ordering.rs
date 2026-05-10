@@ -20,26 +20,33 @@ const MVV_LVA: [[i32; 13]; 13] = [
     [0,        605,  604,  603,  602,  601,  600,  605,  604,  603,  602,  601,  600], // victim: BK
 ];
 
+const KILLER_SCORE_0: i32 = 90;
+const KILLER_SCORE_1: i32 = 80;
+
 #[inline(always)]
-pub fn score_move(mv: Move) -> i32 {
+pub fn score_move(mv: Move, killers: &[Option<Move>; 2]) -> i32 {
     if mv.is_capture() {
         MVV_LVA[mv.captured() as usize][mv.piece() as usize]
+    } else if killers[0] == Some(mv) {
+        KILLER_SCORE_0
+    } else if killers[1] == Some(mv) {
+        KILLER_SCORE_1
     } else {
         0
     }
 }
 
-pub fn next_best(moves: &mut [Move], start: usize) -> Option<Move> {
+pub fn next_best(moves: &mut [Move], start: usize, killers: &[Option<Move>; 2]) -> Option<Move> {
     if start >= moves.len() {
         return None;
     }
 
     let mut best_idx = start;
-    let mut best_score = score_move(moves[start]);
+    let mut best_score = score_move(moves[start], killers);
 
     #[allow(clippy::needless_range_loop)]
     for i in (start + 1)..moves.len() {
-        let score = score_move(moves[i]);
+        let score = score_move(moves[i], killers);
         if score > best_score {
             best_score = score;
             best_idx = i;

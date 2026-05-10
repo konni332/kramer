@@ -32,6 +32,7 @@ impl Board {
         tx: Sender<UciMessage>,
         tt: &mut TranspositionTable,
     ) -> Option<SearchResult> {
+        self.killers = [[None; 2]; 64];
         let nodes = Arc::new(AtomicU64::new(0));
         let start = std::time::Instant::now();
         let mut result = SearchResult {
@@ -136,7 +137,7 @@ impl Board {
                 return None;
             }
 
-            let mv = next_best(moves, i).unwrap();
+            let mv = next_best(moves, i, &[None, None]).unwrap();
             let undo = self.make_move(mv);
             let score = -self.negamax(depth - 1, -beta, -alpha, stop, tt, nodes)?;
             self.unmake_move(mv, undo);
@@ -235,7 +236,7 @@ impl Board {
                 return None;
             }
 
-            let mv = next_best(moves, i).unwrap();
+            let mv = next_best(moves, i, &self.killers[depth as usize]).unwrap();
             let undo = self.make_move(mv);
             let score = -self.negamax(depth - 1, -beta, -alpha, stop, tt, nodes)?;
             self.unmake_move(mv, undo);
@@ -250,6 +251,13 @@ impl Board {
             }
 
             if alpha >= beta {
+                if !mv.is_capture() {
+                    let d = depth as usize;
+                    if self.killers[d][0] != Some(mv) {
+                        self.killers[d][1] = self.killers[d][0];
+                        self.killers[d][0] = Some(mv);
+                    }
+                }
                 tt.store(hash, depth, best, TTFlag::LowerBound, Some(mv));
                 return Some(best);
             }
@@ -302,7 +310,7 @@ impl Board {
                 return None;
             }
 
-            let mv = next_best(moves, i).unwrap();
+            let mv = next_best(moves, i, &[None, None]).unwrap();
             let undo = self.make_move(mv);
             let score = -self.quiescence(-beta, -alpha, stop, tt, nodes)?;
             self.unmake_move(mv, undo);

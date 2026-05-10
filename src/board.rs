@@ -77,6 +77,8 @@ pub struct Board {
     pub pst_eg: i32,
 
     pub history: Vec<u64>,
+
+    pub killers: [[Option<Move>; 2]; 64], // max depth 64, 2 moves per depth
 }
 
 impl Board {
@@ -102,6 +104,7 @@ impl Board {
             pst_eg: 0,
 
             history: Vec::with_capacity(10),
+            killers: [[None; 2]; 64],
         }
     }
 
@@ -425,6 +428,15 @@ impl Board {
         let end = len - 1;
         let lookback = end.saturating_sub(self.halfmove_clock as usize);
         self.history[lookback..end].contains(&current)
+    }
+
+    pub fn store_killer(&mut self, mv: Move, depth: u8) {
+        let d = depth as usize;
+        // dont store if it is already killer 0
+        if self.killers[d][0] != Some(mv) {
+            self.killers[d][1] = self.killers[d][0];
+            self.killers[d][0] = Some(mv);
+        }
     }
 }
 

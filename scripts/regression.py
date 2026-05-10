@@ -151,6 +151,7 @@ def main():
     parser.add_argument("--no-sprt",     action="store_true",   help="skip SPRT, bench only")
     parser.add_argument("--save-release",action="store_true",   help="save current binary to releases/")
     parser.add_argument("--version",     type=str, default=None,help="version tag for --save-release")
+    parser.add_argument("--ignore-regression", action="store_true", help="do not fail on detected regression")
     args = parser.parse_args()
 
     git_hash = run_capture(["git", "rev-parse", "--short", "HEAD"]) or "unknown"
@@ -233,7 +234,7 @@ def main():
     write_report(REPO_ROOT / "regression_report.json", report)
 
     # 7. exit code
-    if bench_regression:
+    if bench_regression and not args.ignore_regression:
         print("\nFAILED: search regression detected (nodes >15% higher)")
         sys.exit(1)
     else:

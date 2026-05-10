@@ -116,7 +116,7 @@ def step_build() -> tuple[Path, Path]:
     return engine, bench
 
 
-def step_regression(depth: int) -> Path:
+def step_regression(depth: int, ignore_regression: bool) -> Path:
     """
     Delegate bench + comparison to regression.py.
     Returns path to the bench_current.json it produced.
@@ -125,11 +125,15 @@ def step_regression(depth: int) -> Path:
 
     bench_out = REPO_ROOT / "bench_current.json"
 
-    run([
+    cmd = [
         sys.executable, str(REGRESSION),
         "--depth",   str(depth),
         "--no-sprt",
-    ])
+    ] 
+    if ignore_regression:
+        cmd.append("--ignore-regression")
+
+    run(cmd)
 
     if not bench_out.exists():
         print("ERROR: bench_current.json not produced by regression.py")
@@ -177,7 +181,7 @@ def step_metadata(
         for f in baseline_features:
             print(f"    - {f}")
     else:
-        print("    (none — first release)")
+        print("    (none - first release)")
 
     new_features = prompt_list("\n  New features added in this release")
     features = list(dict.fromkeys(baseline_features + new_features))
@@ -200,7 +204,7 @@ def step_metadata(
     print(json.dumps(metadata, indent=4))
     confirm = input("\n  Looks good? [Y/n]: ").strip().lower()
     if confirm == "n":
-        print("  Aborting — edit and rerun.")
+        print("  Aborting - edit and rerun.")
         sys.exit(0)
 
     return metadata
@@ -253,6 +257,7 @@ def main() -> None:
                         help="elo rating (skip prompt)")
     parser.add_argument("--tc",      type=str, default=None,
                         help="time control used for elo measurement (skip prompt)")
+    parser.add_argument("--ignore-regression", action="store_true", help="do not fail on detected regression", default=False)
     args = parser.parse_args()
 
     git_hash = run_capture(["git", "rev-parse", "--short", "HEAD"]) or "unknown"
@@ -263,12 +268,12 @@ def main() -> None:
         sys.exit(1)
     version: str = raw_version
 
-    print(f"Kramer release script — v{version} @ {git_hash}")
+    print(f"Kramer release script - v{version} @ {git_hash}")
     print("=" * 50)
 
     step_tests()
     engine, _bench_bin = step_build()
-    bench_out = step_regression(args.depth)
+    bench_out = step_regression(args.depth, args.ignore_regression)
     metadata  = step_metadata(args, git_hash, version)
     release_dir = step_bundle(version, engine, bench_out, metadata)
 

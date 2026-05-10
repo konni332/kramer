@@ -131,7 +131,6 @@ def run_sprt(current_engine, baseline_engine, games, elo_target, concurrency):
         "score_line": score_line,
         "elo_line":   elo_line,
         "sprt_line":  sprt_line,
-        "full_output": output,
         "pgn": str(pgn_out),
     }
 

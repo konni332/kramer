@@ -106,6 +106,16 @@ impl Board {
             &mut phase,
         );
 
+        // bishop pair bonus
+        if self.pieces[WB as usize - 1].count_ones() >= 2 {
+            mg_white += 30;
+            eg_white += 50;
+        }
+        if self.pieces[BB as usize - 1].count_ones() >= 2 {
+            mg_black += 30;
+            eg_black += 50;
+        }
+
         let phase = phase.min(MAX_PHASE);
         let eg_phase = MAX_PHASE - phase;
 

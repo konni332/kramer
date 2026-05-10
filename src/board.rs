@@ -343,6 +343,32 @@ impl Board {
         }
     }
 
+    pub fn make_null_move(&mut self) -> NullUndo {
+        let undo = NullUndo {
+            ep_square: self.ep_square,
+            zobrist: self.zobrist,
+        };
+
+        if self.ep_square != 64 {
+            self.zobrist ^= ZOBRIST_EP[(self.ep_square % 8) as usize];
+        }
+        self.zobrist ^= ZOBRIST_SIDE;
+        self.side_to_move ^= 1;
+
+        self.ep_square = 64;
+
+        self.halfmove_clock += 1;
+
+        undo
+    }
+
+    pub fn unmake_null_move(&mut self, undo: NullUndo) {
+        self.side_to_move ^= 1;
+        self.ep_square = undo.ep_square;
+        self.zobrist = undo.zobrist;
+        self.halfmove_clock -= 1;
+    }
+
     pub fn compute_zobrist(&self) -> u64 {
         let mut hash = 0u64;
 
@@ -366,6 +392,23 @@ impl Board {
 
         hash
     }
+    pub fn has_non_pawn_material(&self, side: usize) -> bool {
+        match side {
+            WHITE => {
+                self.pieces[WN as usize - 1] != 0
+                    || self.pieces[WB as usize - 1] != 0
+                    || self.pieces[WR as usize - 1] != 0
+                    || self.pieces[WQ as usize - 1] != 0
+            }
+            BLACK => {
+                self.pieces[BN as usize - 1] != 0
+                    || self.pieces[BB as usize - 1] != 0
+                    || self.pieces[BR as usize - 1] != 0
+                    || self.pieces[BQ as usize - 1] != 0
+            }
+            _ => unreachable!("has_non_pawn_material called with invalid side"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -373,6 +416,11 @@ pub struct Undo {
     pub castling: u8,
     pub ep_square: u8,
     pub halfmove_clock: u16,
+    pub zobrist: u64,
+}
+
+pub struct NullUndo {
+    pub ep_square: u8,
     pub zobrist: u64,
 }
 

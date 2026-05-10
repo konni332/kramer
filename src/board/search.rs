@@ -201,6 +201,23 @@ impl Board {
             list.move_to_front(tt_move);
         }
 
+        let static_eval = self.evaluate();
+        let in_check = self.king_in_check(self.side_to_move as usize);
+
+        if !in_check
+            && depth >= 3
+            && self.has_non_pawn_material(self.side_to_move as usize)
+            && static_eval >= beta
+        {
+            let r = if depth >= 6 { 3 } else { 2 };
+            let null_undo = self.make_null_move();
+            let null_score = -self.negamax(depth - 1 - r, -beta, -beta + 1, stop, tt, nodes)?;
+            self.unmake_null_move(null_undo);
+            if null_score >= beta {
+                return Some(beta);
+            }
+        }
+
         let mut best = -INF;
         let mut best_move = None;
 

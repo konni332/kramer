@@ -170,6 +170,14 @@ impl Board {
             return None;
         }
 
+        if self.halfmove_clock >= 100 {
+            return Some(0);
+        }
+
+        if self.is_repitition() {
+            return Some(0);
+        }
+
         if depth == 0 {
             return self.quiescence(alpha, beta, stop, tt, nodes);
         }

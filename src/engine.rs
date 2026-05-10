@@ -138,7 +138,7 @@ impl Engine {
 
                 let stop = Arc::clone(&self.stop_flag);
                 let tx = self.out_tx.clone();
-                let mut board = self.board;
+                let mut board = self.board.clone();
 
                 let max_depth = search_control
                     .as_ref()

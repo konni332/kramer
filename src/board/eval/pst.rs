@@ -73,6 +73,18 @@ pub const KING_MG_PST: [i32; 64] = [
      20, 30, 10,  0,  0, 10, 30, 20,
 ];
 
+#[rustfmt::skip]
+pub const KING_EG_PST: [i32; 64] = [
+    -25,-15,-15,-15,-15,-15,-15,-25,
+    -15,-10, -5,  0,  0, -5,-10,-15,
+    -15, -5, 10, 15, 15, 10, -5,-15,
+    -15, -5, 15, 20, 20, 15, -5,-15,
+    -15, -5, 15, 20, 20, 15, -5,-15,
+    -15, -5, 10, 15, 15, 10, -5,-15,
+    -15,-15,  0,  0,  0,  0,-15,-15,
+    -25,-15,-15,-15,-15,-15,-15,-25,
+];
+
 // white piece on sq → mirror to get PST index
 // rank 0 (a1..h1) should map to the BOTTOM of the table (visually rank 1)
 #[inline(always)]

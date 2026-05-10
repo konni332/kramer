@@ -1,12 +1,18 @@
 use crate::board::{
     BB, BK, BN, BP, BQ, BR, Board, WB, WHITE, WK, WN, WP, WQ, WR,
     eval::pst::{
-        BISHOP_PST, KING_MG_PST, KNIGHT_PST, PAWN_PST, QUEEN_PST, ROOK_PST, black_pst_index,
-        white_pst_index,
+        BISHOP_PST, KING_EG_PST, KING_MG_PST, KNIGHT_PST, PAWN_PST, QUEEN_PST, ROOK_PST,
+        black_pst_index, white_pst_index,
     },
 };
 
 mod pst;
+
+const PHASE_KNIGHT: i32 = 1;
+const PHASE_BISHOP: i32 = 1;
+const PHASE_ROOK: i32 = 2;
+const PHASE_QUEEN: i32 = 4;
+const MAX_PHASE: i32 = 4 * PHASE_KNIGHT + 4 * PHASE_BISHOP + 4 * PHASE_ROOK + 2 * PHASE_QUEEN; // 24
 
 impl Board {
     pub fn evaluate(&self) -> i32 {
@@ -38,6 +44,30 @@ impl Board {
         score -= pst_score(self.pieces[BR as usize - 1], &ROOK_PST, true);
         score -= pst_score(self.pieces[BQ as usize - 1], &QUEEN_PST, true);
         score -= pst_score(self.pieces[BK as usize - 1], &KING_MG_PST, true);
+
+        // phase — based on remaining non-pawn material
+        let mut phase = 0i32;
+        phase += self.pieces[WN as usize - 1].count_ones() as i32 * PHASE_KNIGHT;
+        phase += self.pieces[WB as usize - 1].count_ones() as i32 * PHASE_BISHOP;
+        phase += self.pieces[WR as usize - 1].count_ones() as i32 * PHASE_ROOK;
+        phase += self.pieces[WQ as usize - 1].count_ones() as i32 * PHASE_QUEEN;
+        phase += self.pieces[BN as usize - 1].count_ones() as i32 * PHASE_KNIGHT;
+        phase += self.pieces[BB as usize - 1].count_ones() as i32 * PHASE_BISHOP;
+        phase += self.pieces[BR as usize - 1].count_ones() as i32 * PHASE_ROOK;
+        phase += self.pieces[BQ as usize - 1].count_ones() as i32 * PHASE_QUEEN;
+        phase = phase.min(MAX_PHASE);
+
+        // tapered king — blend between mg and eg by phase
+        let wk_mg = pst_score(self.pieces[WK as usize - 1], &KING_MG_PST, false);
+        let wk_eg = pst_score(self.pieces[WK as usize - 1], &KING_EG_PST, false);
+        let bk_mg = pst_score(self.pieces[BK as usize - 1], &KING_MG_PST, true);
+        let bk_eg = pst_score(self.pieces[BK as usize - 1], &KING_EG_PST, true);
+
+        let wk_score = (wk_mg * phase + wk_eg * (MAX_PHASE - phase)) / MAX_PHASE;
+        let bk_score = (bk_mg * phase + bk_eg * (MAX_PHASE - phase)) / MAX_PHASE;
+
+        score += wk_score;
+        score -= bk_score;
 
         if self.side_to_move == WHITE as u8 {
             score

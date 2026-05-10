@@ -53,7 +53,7 @@ pub const BK: u8 = 12;
 /// 11 BQ
 /// 12 BK
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Board {
     pub pieces: [Bitboard; 12],
 
@@ -75,6 +75,8 @@ pub struct Board {
 
     pub pst_mg: i32,
     pub pst_eg: i32,
+
+    pub history: Vec<u64>,
 }
 
 impl Board {
@@ -98,6 +100,8 @@ impl Board {
 
             pst_mg: 0,
             pst_eg: 0,
+
+            history: Vec::with_capacity(10),
         }
     }
 
@@ -296,9 +300,12 @@ impl Board {
             self.fullmove_number += 1;
         }
 
+        self.history.push(self.zobrist);
+
         undo
     }
     pub fn unmake_move(&mut self, mv: Move, undo: Undo) {
+        self.history.pop();
         self.side_to_move ^= 1;
 
         let from = mv.from();
@@ -408,6 +415,16 @@ impl Board {
             }
             _ => unreachable!("has_non_pawn_material called with invalid side"),
         }
+    }
+    pub fn is_repitition(&self) -> bool {
+        let current = self.zobrist;
+        let len = self.history.len();
+        if len < 2 {
+            return false;
+        }
+        let end = len - 1;
+        let lookback = end.saturating_sub(self.halfmove_clock as usize);
+        self.history[lookback..end].contains(&current)
     }
 }
 

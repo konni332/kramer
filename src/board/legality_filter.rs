@@ -258,7 +258,7 @@ mod tests {
         assert!(!list.is_empty());
         for mv in list.as_slice() {
             // every legal move must result in king not being in check
-            let mut board2 = board;
+            let mut board2 = board.clone();
             board2.make_move(*mv);
             assert!(
                 !board2.king_in_check(WHITE),

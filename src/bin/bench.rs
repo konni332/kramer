@@ -91,7 +91,7 @@ fn main() {
         let (tx, rx) = channel::unbounded();
 
         let start = Instant::now();
-        board.iterative_deepening(depth, &stop, tx, &mut tt);
+        board.iterative_deepening(depth, &stop, tx, &mut tt, None);
         let time_ms = start.elapsed().as_millis() as u64;
 
         // extract final node count and nps from the last info message

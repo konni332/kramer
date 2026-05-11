@@ -1,6 +1,9 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, AtomicU64, Ordering},
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicBool, AtomicU64, Ordering},
+    },
+    time::Duration,
 };
 
 use chrono::TimeDelta;
@@ -9,6 +12,7 @@ use vampirc_uci::{UciInfoAttribute, UciMessage};
 
 use crate::{
     board::Board,
+    engine::MAX_DEPTH,
     move_ordering::next_best,
     moves::{Move, MoveList},
     tt::{TTFlag, TranspositionTable},
@@ -31,8 +35,9 @@ impl Board {
         stop: &Arc<AtomicBool>,
         tx: Sender<UciMessage>,
         tt: &mut TranspositionTable,
+        allocated_time: Option<Duration>,
     ) -> Option<SearchResult> {
-        self.killers = [[None; 2]; 64];
+        self.killers = [[None; 2]; (MAX_DEPTH + 1) as usize];
         let nodes = Arc::new(AtomicU64::new(0));
         let start = std::time::Instant::now();
         let mut result = SearchResult {
@@ -45,7 +50,11 @@ impl Board {
             if stop.load(Ordering::Relaxed) {
                 break;
             }
-
+            if let Some(time) = allocated_time
+                && start.elapsed() > time / 2
+            {
+                break;
+            }
             let search = self.search_root(depth, stop, tt, &nodes);
 
             if stop.load(Ordering::Relaxed) {

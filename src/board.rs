@@ -1,5 +1,6 @@
 use crate::{
     board::generation::CASTLING_RIGHTS_MASK,
+    engine::MAX_DEPTH,
     moves::{FLAG_CAPTURE, Move, MoveList},
     zobrist::{ZOBRIST_CASTLING, ZOBRIST_EP, ZOBRIST_PIECE, ZOBRIST_SIDE},
 };
@@ -36,22 +37,6 @@ pub const BR: u8 = 10;
 pub const BQ: u8 = 11;
 pub const BK: u8 = 12;
 
-/// # Piece encoding:
-/// 0 empty
-///
-/// 1 WP
-/// 2 WN
-/// 3 WB
-/// 4 WR
-/// 5 WQ
-/// 6 WK
-///
-/// 7 BP
-/// 8 BN
-/// 9 BB
-/// 10 BR
-/// 11 BQ
-/// 12 BK
 #[repr(C)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Board {
@@ -78,7 +63,7 @@ pub struct Board {
 
     pub history: Vec<u64>,
 
-    pub killers: [[Option<Move>; 2]; 64], // max depth 64, 2 moves per depth
+    pub killers: [[Option<Move>; 2]; (MAX_DEPTH + 1) as usize], // max depth 99 + 1 just to be safe :), 2 moves per depth
 }
 
 impl Board {
@@ -104,7 +89,7 @@ impl Board {
             pst_eg: 0,
 
             history: Vec::with_capacity(10),
-            killers: [[None; 2]; 64],
+            killers: [[None; 2]; (MAX_DEPTH + 1) as usize],
         }
     }
 

@@ -4,18 +4,19 @@ use std::{
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
     thread,
-    time::Duration,
 };
 
 use crossbeam::channel::Sender;
-use vampirc_uci::{MessageList, UciMessage, UciOptionConfig, UciTimeControl};
+use vampirc_uci::{MessageList, UciMessage, UciOptionConfig};
 
 use crate::{
     board::{Board, WHITE},
     moves::MoveList,
-    time::allocate_time,
+    time::allocate_time_from_time_control,
     tt::TranspositionTable,
 };
+
+pub const MAX_DEPTH: u8 = 99;
 
 #[derive(Debug)]
 pub struct Engine {
@@ -53,9 +54,9 @@ impl Engine {
     }
     fn stop_search(&mut self) {
         self.stop_flag.store(true, Ordering::Relaxed);
-        if let Some(handle) = self.search_thread.take() {
-            handle.join().ok();
-        }
+        // dont join, just let the last search finish on its own
+        // the generation counter ensures the old timer wont fire into new search
+        self.search_thread = None;
     }
 
     fn send_msg(&self, msg: UciMessage) {
@@ -143,7 +144,7 @@ impl Engine {
                 let max_depth = search_control
                     .as_ref()
                     .and_then(|sc| sc.depth)
-                    .unwrap_or(99);
+                    .unwrap_or(MAX_DEPTH);
 
                 let allocated_time = allocate_time_from_time_control(
                     self.board.side_to_move == WHITE as u8,
@@ -167,7 +168,13 @@ impl Engine {
                 let tt = Arc::clone(&self.tt);
                 let handle = thread::spawn(move || {
                     let mut tt = tt.lock().unwrap();
-                    let result = board.iterative_deepening(max_depth, &stop, tx.clone(), &mut tt);
+                    let result = board.iterative_deepening(
+                        max_depth,
+                        &stop,
+                        tx.clone(),
+                        &mut tt,
+                        allocated_time,
+                    );
                     let msg = match result.as_ref().and_then(|r| r.best_move) {
                         Some(mv) => UciMessage::best_move(mv.into()),
                         None => {
@@ -307,46 +314,5 @@ impl Default for EngineOptions {
             threads_option: THREADS_DEFAULT,
             hash_option: HASH_DEFAULT,
         }
-    }
-}
-
-fn allocate_time_from_time_control(
-    white: bool,
-    time_control: Option<UciTimeControl>,
-) -> Option<Duration> {
-    let tc = time_control?;
-
-    match tc {
-        UciTimeControl::TimeLeft {
-            white_time,
-            black_time,
-            white_increment,
-            black_increment,
-            moves_to_go,
-        } => {
-            let time_ms = if white {
-                white_time.map(|d| d.num_milliseconds() as u64)
-            } else {
-                black_time.map(|d| d.num_milliseconds() as u64)
-            }?;
-
-            let inc_ms = if white {
-                white_increment.map(|d| d.num_milliseconds() as u64)
-            } else {
-                black_increment.map(|d| d.num_milliseconds() as u64)
-            }
-            .unwrap_or(0);
-
-            Some(allocate_time(
-                time_ms,
-                inc_ms,
-                moves_to_go.map(|m| m as u32),
-            ))
-        }
-        UciTimeControl::MoveTime(duration) => Some(Duration::from_millis(
-            duration.num_milliseconds().saturating_sub(50) as u64,
-        )),
-        UciTimeControl::Infinite => None,
-        UciTimeControl::Ponder => None,
     }
 }

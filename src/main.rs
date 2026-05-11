@@ -1,5 +1,5 @@
 use clap::Parser;
-use kramer_core::{Board, logging, run_engine};
+use kramer_core::{logging, run_engine};
 
 use crate::cli::{KramerCli, KramerCommand};
 
@@ -8,9 +8,6 @@ mod cli;
 fn main() -> miette::Result<()> {
     let _guard = logging::init();
     logging::install_panic_hook();
-
-    let board = Board::startpos();
-    eprintln!("startpos eval: {}", board.evaluate());
 
     let cli = KramerCli::parse();
     if let Some(cmd) = cli.command {

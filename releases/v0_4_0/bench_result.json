@@ -1,0 +1,74 @@
+{
+  "version": "0.4.0",
+  "git_hash": "a47cb71",
+  "depth": 10,
+  "positions": [
+    {
+      "name": "startpos",
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "depth": 10,
+      "nodes": 19522677,
+      "time_ms": 2858,
+      "nps": 9761338
+    },
+    {
+      "name": "kiwipete",
+      "fen": "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+      "depth": 10,
+      "nodes": 38584232,
+      "time_ms": 5892,
+      "nps": 7716846
+    },
+    {
+      "name": "endgame",
+      "fen": "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1",
+      "depth": 10,
+      "nodes": 1763929,
+      "time_ms": 202,
+      "nps": 0
+    },
+    {
+      "name": "tactical1",
+      "fen": "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1",
+      "depth": 10,
+      "nodes": 3768904,
+      "time_ms": 537,
+      "nps": 0
+    },
+    {
+      "name": "tactical2",
+      "fen": "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8",
+      "depth": 10,
+      "nodes": 5594334,
+      "time_ms": 709,
+      "nps": 0
+    },
+    {
+      "name": "complex",
+      "fen": "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10",
+      "depth": 10,
+      "nodes": 98855945,
+      "time_ms": 13251,
+      "nps": 7604303
+    },
+    {
+      "name": "pawn_eg",
+      "fen": "8/5k2/3p4/1p1Pp2p/pP2Pp1P/P4P1K/8/8 b - - 99 50",
+      "depth": 10,
+      "nodes": 80,
+      "time_ms": 0,
+      "nps": 0
+    },
+    {
+      "name": "promo",
+      "fen": "r2q1rk1/pP1p2pp/Q4n2/bbp1p3/Np6/1B3NBn/pPPP1PPP/R3K2R b KQ - 0 1",
+      "depth": 10,
+      "nodes": 4240938,
+      "time_ms": 582,
+      "nps": 0
+    }
+  ],
+  "total_nodes": 172331039,
+  "total_time_ms": 24031,
+  "total_nps": 7171197
+}

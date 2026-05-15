@@ -4,10 +4,11 @@ use std::{
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
     thread,
+    time::Duration,
 };
 
 use crossbeam::channel::Sender;
-use vampirc_uci::{MessageList, UciMessage, UciOptionConfig};
+use vampirc_uci::{MessageList, UciMessage, UciOptionConfig, UciTimeControl};
 
 use crate::{
     board::{Board, WHITE},
@@ -31,6 +32,10 @@ pub struct Engine {
 
     tt: Arc<Mutex<TranspositionTable>>,
     search_generation: Arc<AtomicU64>,
+
+    ponder_allocated_time: Option<Duration>,
+    is_pondering: bool,
+    last_time_control: Option<UciTimeControl>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,12 +55,13 @@ impl Engine {
             out_tx,
             tt: Arc::new(Mutex::new(TranspositionTable::new(16))), // default 16MB
             search_generation: Arc::new(AtomicU64::new(0)),
+            ponder_allocated_time: None,
+            is_pondering: false,
+            last_time_control: None,
         }
     }
     fn stop_search(&mut self) {
         self.stop_flag.store(true, Ordering::Relaxed);
-        // dont join, just let the last search finish on its own
-        // the generation counter ensures the old timer wont fire into new search
         self.search_thread = None;
     }
 
@@ -65,7 +71,7 @@ impl Engine {
         }
     }
 
-    pub fn command(&mut self, cmd: UciMessage) {
+    pub fn command(&mut self, cmd: UciMessage, ponder: bool) {
         match cmd {
             UciMessage::Uci => {
                 self.send_msg(self.id());
@@ -135,6 +141,7 @@ impl Engine {
                 time_control,
             } => {
                 self.stop_search();
+                self.search_generation.fetch_add(1, Ordering::Relaxed);
                 self.stop_flag.store(false, Ordering::Relaxed);
 
                 let stop = Arc::clone(&self.stop_flag);
@@ -146,35 +153,24 @@ impl Engine {
                     .and_then(|sc| sc.depth)
                     .unwrap_or(MAX_DEPTH);
 
-                let allocated_time = allocate_time_from_time_control(
-                    self.board.side_to_move == WHITE as u8,
-                    time_control,
-                );
-
-                let gena = self.search_generation.fetch_add(1, Ordering::Relaxed);
-                let expected_gen = gena + 1; // the new generation
-
-                if let Some(time) = allocated_time {
-                    let stop_timer = Arc::clone(&self.stop_flag);
-                    let generation = Arc::clone(&self.search_generation);
-                    thread::spawn(move || {
-                        thread::sleep(time);
-                        if generation.load(Ordering::Relaxed) == expected_gen {
-                            stop_timer.store(true, Ordering::Relaxed);
-                        }
-                    });
+                if ponder {
+                    self.is_pondering = true;
+                    self.ponder_allocated_time = self.allocate_time(time_control);
+                    // dont start timer, we treat this like search infinite!
+                } else {
+                    self.is_pondering = false;
+                    // actually allocate time
+                    let time = self.allocate_time(time_control);
+                    // start timer, unless time is infinite
+                    if let Some(t) = time {
+                        self.start_timer(t);
+                    }
                 }
 
                 let tt = Arc::clone(&self.tt);
                 let handle = thread::spawn(move || {
                     let mut tt = tt.lock().unwrap();
-                    let result = board.iterative_deepening(
-                        max_depth,
-                        &stop,
-                        tx.clone(),
-                        &mut tt,
-                        allocated_time,
-                    );
+                    let result = board.iterative_deepening(max_depth, &stop, tx.clone(), &mut tt);
                     let msg = match result.as_ref().and_then(|r| r.best_move) {
                         Some(mv) => UciMessage::best_move(mv.into()),
                         None => {
@@ -200,16 +196,46 @@ impl Engine {
                 self.stop_search();
                 tracing::info!("search stopped");
             }
-            UciMessage::PonderHit => {
-                tracing::info!("received ponderhit command(noop)");
-            }
+
             UciMessage::Quit => {
                 tracing::debug!("engine received quit");
+            }
+            UciMessage::PonderHit => {
+                self.is_pondering = false;
+                if let Some(time) = self.ponder_allocated_time {
+                    self.start_timer(time);
+                }
             }
             _ => {
                 tracing::debug!(?cmd, "engine received command");
             }
         };
+    }
+
+    fn allocate_time(&mut self, time_control: Option<UciTimeControl>) -> Option<Duration> {
+        let white = self.board.side_to_move == WHITE as u8;
+        match time_control {
+            Some(UciTimeControl::Ponder) => {
+                allocate_time_from_time_control(white, self.last_time_control.as_ref())
+            }
+            _ => {
+                let allocated = allocate_time_from_time_control(white, time_control.as_ref());
+                self.last_time_control = time_control;
+                allocated
+            }
+        }
+    }
+
+    fn start_timer(&self, time: Duration) {
+        let stop_timer = Arc::clone(&self.stop_flag);
+        let generation = Arc::clone(&self.search_generation);
+        let expected_gen = self.search_generation.load(Ordering::Relaxed);
+        thread::spawn(move || {
+            thread::sleep(time);
+            if generation.load(Ordering::Relaxed) == expected_gen {
+                stop_timer.store(true, Ordering::Relaxed);
+            }
+        });
     }
 
     fn id(&self) -> UciMessage {

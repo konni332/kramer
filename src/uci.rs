@@ -3,7 +3,7 @@ use std::io::{self, BufRead};
 use crossbeam::channel::Sender;
 use vampirc_uci::{UciMessage, parse_one};
 
-pub fn run(tx: Sender<UciMessage>) -> io::Result<()> {
+pub fn run(tx: Sender<(UciMessage, bool)>) -> io::Result<()> {
     let stdin = io::stdin();
 
     for line in stdin.lock().lines() {
@@ -14,11 +14,12 @@ pub fn run(tx: Sender<UciMessage>) -> io::Result<()> {
             continue;
         }
 
-        let cmd = parse_one(line);
+        let ponder = line.split_whitespace().any(|t| t == "ponder") && line.starts_with("go");
+        let msg = parse_one(line);
 
-        let quit = matches!(cmd, UciMessage::Quit);
+        let quit = matches!(msg, UciMessage::Quit);
 
-        if tx.send(cmd).is_err() {
+        if tx.send((msg, ponder)).is_err() {
             break;
         }
 

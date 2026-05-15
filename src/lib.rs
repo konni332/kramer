@@ -24,7 +24,7 @@ pub fn run_engine() {
     tracing::info!("kramer boot");
 
     // command channel (uci -> engine)
-    let (cmd_tx, cmd_rx) = unbounded::<UciMessage>();
+    let (cmd_tx, cmd_rx) = unbounded::<(UciMessage, bool)>();
     // output channel (uci -> stdout)
     let (out_tx, out_rx) = unbounded::<UciMessage>();
 
@@ -32,11 +32,11 @@ pub fn run_engine() {
         let mut engine = Engine::new(out_tx);
 
         while let Ok(cmd) = cmd_rx.recv() {
-            if matches!(cmd, UciMessage::Quit) {
+            if matches!(cmd, (UciMessage::Quit, _)) {
                 break;
             }
-
-            engine.command(cmd);
+            let (cmd, ponder) = cmd;
+            engine.command(cmd, ponder);
         }
     });
 

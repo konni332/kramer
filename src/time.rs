@@ -25,7 +25,7 @@ pub fn allocate_time(
 
 pub fn allocate_time_from_time_control(
     white: bool,
-    time_control: Option<UciTimeControl>,
+    time_control: Option<&UciTimeControl>,
 ) -> Option<Duration> {
     let tc = time_control?;
 

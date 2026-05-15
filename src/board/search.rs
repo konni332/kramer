@@ -1,9 +1,6 @@
-use std::{
-    sync::{
-        Arc,
-        atomic::{AtomicBool, AtomicU64, Ordering},
-    },
-    time::Duration,
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, AtomicU64, Ordering},
 };
 
 use chrono::TimeDelta;
@@ -21,6 +18,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SearchResult {
     pub best_move: Option<Move>,
+    pub ponder_move: Option<Move>,
     pub score: i32,
     pub depth: u8,
 }
@@ -35,24 +33,19 @@ impl Board {
         stop: &Arc<AtomicBool>,
         tx: Sender<UciMessage>,
         tt: &mut TranspositionTable,
-        allocated_time: Option<Duration>,
     ) -> Option<SearchResult> {
         self.killers = [[None; 2]; (MAX_DEPTH + 1) as usize];
         let nodes = Arc::new(AtomicU64::new(0));
         let start = std::time::Instant::now();
         let mut result = SearchResult {
             best_move: None,
+            ponder_move: None,
             score: 0,
             depth: 0,
         };
 
         for depth in 1..=max_depth {
             if stop.load(Ordering::Relaxed) {
-                break;
-            }
-            if let Some(time) = allocated_time
-                && start.elapsed() > time / 2
-            {
                 break;
             }
             let search = self.search_root(depth, stop, tt, &nodes);
@@ -102,6 +95,14 @@ impl Board {
                 break;
             }
         }
+        result.ponder_move = if let Some(mv) = result.best_move {
+            let undo = self.make_move(mv);
+            let ponder = tt.probe_move(self.zobrist);
+            self.unmake_move(mv, undo);
+            ponder
+        } else {
+            None
+        };
 
         if result.best_move.is_some() {
             Some(result)
@@ -148,8 +149,9 @@ impl Board {
 
             let mv = next_best(moves, i, &[None, None]).unwrap();
             let undo = self.make_move(mv);
-            let score = -self.negamax(depth - 1, -beta, -alpha, stop, tt, nodes)?;
+            let score = self.negamax(depth - 1, -beta, -alpha, stop, tt, nodes);
             self.unmake_move(mv, undo);
+            let score = -score?;
 
             if score > best_score {
                 best_score = score;
@@ -229,8 +231,9 @@ impl Board {
         {
             let r = if depth >= 6 { 3 } else { 2 };
             let null_undo = self.make_null_move();
-            let null_score = -self.negamax(depth - 1 - r, -beta, -beta + 1, stop, tt, nodes)?;
+            let null_score = self.negamax(depth - 1 - r, -beta, -beta + 1, stop, tt, nodes);
             self.unmake_null_move(null_undo);
+            let null_score = -null_score?;
             if null_score >= beta {
                 return Some(beta);
             }
@@ -247,8 +250,9 @@ impl Board {
 
             let mv = next_best(moves, i, &self.killers[depth as usize]).unwrap();
             let undo = self.make_move(mv);
-            let score = -self.negamax(depth - 1, -beta, -alpha, stop, tt, nodes)?;
+            let score = self.negamax(depth - 1, -beta, -alpha, stop, tt, nodes);
             self.unmake_move(mv, undo);
+            let score = -score?;
 
             if score > best {
                 best = score;
@@ -321,8 +325,9 @@ impl Board {
 
             let mv = next_best(moves, i, &[None, None]).unwrap();
             let undo = self.make_move(mv);
-            let score = -self.quiescence(-beta, -alpha, stop, tt, nodes)?;
+            let score = self.quiescence(-beta, -alpha, stop, tt, nodes);
             self.unmake_move(mv, undo);
+            let score = -score?;
 
             if score >= beta {
                 return Some(beta);

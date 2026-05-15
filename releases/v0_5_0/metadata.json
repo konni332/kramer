@@ -1,0 +1,23 @@
+{
+  "version": "0.5.0",
+  "commit": "fc36cf7",
+  "date": "2026-05-15",
+  "elo": 2230,
+  "tc": "10+0.1",
+  "features": [
+    "alpha-beta pruning",
+    "iterative deepening",
+    "quiescence search",
+    "transposition table",
+    "TT move ordering",
+    "time management",
+    "MVV-LVA",
+    "material evaluation",
+    "piece-square tables",
+    "null-move pruning",
+    "pst tapering",
+    "passed pawns",
+    "killer moves",
+    "pondering"
+  ]
+}
